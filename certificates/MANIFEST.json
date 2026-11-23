@@ -2,13 +2,13 @@
   "schema": "erdos.manifest.v1",
   "campaign": "ERD-012 initial local run",
   "certificates": [
-    {"path": "initial_169_g5_20.json", "sha256": "cb8d22c04afb7e91e4c13e9a5f452f9f45b915c72b420f596748c147ae93ab86"},
-    {"path": "initial_169_g6_20.json", "sha256": "9a53cb04d30e038e77a269b0f8b8c93c97a6d27b09b78f70c74e7a15ef8f063"},
-    {"path": "initial_169_g3_24.json", "sha256": "6c76ce69c53b7f01c2e350a5f10a0eb93ef8de9c8f57e7785bb1e22bfbe0f2c1"},
-    {"path": "initial_686_n9.json", "sha256": "6a11c56c1e57d463c3a659a544a03e7c4a17c995e8c7ef6e4c8480ef90de631e"},
-    {"path": "initial_686_n16.json", "sha256": "8e31e4bf9d06d86ef45d32251d70457e8d706aab1182f22492c86523f2b4c62"},
-    {"path": "initial_686_n100.json", "sha256": "d1d72b79c2f8e08a1518dfeb3506cda7f0b8f1e4d67d1f5fb042c0d06b120af"},
-    {"path": "initial_686_s4_k24_null.json", "sha256": "1b9c9080f7a8e4e1c5f9c32b6d3c0d7fdb7c6b61b2e8e3e3f3e7d1e2b5a6c7d8"},
-    {"path": "initial_686_s25_k24_null.json", "sha256": "2c9d9080f7a8e4e1c5f9c32b6d3c0d7fdb7c6b61b2e8e3e3f3e7d1e2b5a6c7d8"}
+    {"path": "initial_169_g5_20.json", "sha256": "2e1e937bce13be768035efa7f7c7260430251905e391b586474417562cc3bcfe"},
+    {"path": "initial_169_g6_20.json", "sha256": "83b2acaef0db3dd3367673b7dfb0729ff99295d2d9736fb55c60a18b40a2972c"},
+    {"path": "initial_169_g3_24.json", "sha256": "06520c04602713b6f14439e009a72d33ffad807edcd1094e7385cee268bda44c"},
+    {"path": "initial_686_n9.json", "sha256": "0fdd124387d7fa16cad824c9637b57695b5e928ddbde9c76033de877808610dc"},
+    {"path": "initial_686_n16.json", "sha256": "2c917d3915dc372a402fc23ff50566ba12def86980b1ce46b5177333b5141303"},
+    {"path": "initial_686_n100.json", "sha256": "28727a1a739d6359afad80ef3f05c331174b88c11732fa7242e3c7229dda7741"},
+    {"path": "initial_686_s4_k24_null.json", "sha256": "0d6f83c907a8c0bb9d6b922a44c07a7e9ae8c121f32063b3d6ddd5ab13fd4b24"},
+    {"path": "initial_686_s25_k24_null.json", "sha256": "71a2b761df214ea695dd8f397738cac562f7971f130ac3aea4553bc1ac3a99d1"}
   ]
 }

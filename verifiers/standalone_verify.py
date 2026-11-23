@@ -469,7 +469,7 @@ def verify_entry(entry: Mapping[str, Any], base_dir: Path) -> Dict[str, Any]:
         if actual_digest != expected_digest:
             return {"valid": False, "error": "certificate sha256 mismatch"}
         schema = cert.get("schema")
-        if schema == "erd169.finite.v1"
+        if schema == "erd169.finite.v1":
             return verify_finite(cert)
         if schema == "erd169.digitset.v1":
             return verify_digitset(cert)
