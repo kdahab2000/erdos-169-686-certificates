@@ -16,14 +16,8 @@ function runPython(args, timeout = 120000) {
 
 test("Python sources compile", () => {
   const result = runPython([
-    "-m",
-    "compileall",
-    "-q",
-    "verifiers",
-    "solvers",
-    "evolutionary",
-    "benchmarks",
-    "tests",
+    "-c",
+    "from pathlib import Path; [compile(p.read_text(encoding='utf-8'), str(p), 'exec') for directory in ('verifiers','solvers','evolutionary','benchmarks','tests') for p in Path(directory).glob('*.py')]",
   ]);
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
@@ -42,7 +36,7 @@ test("stdlib unittest suite passes", () => {
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
-test("initial certificate manifest verifies standalone", () => {
+test("certificate manifest verifies standalone", () => {
   const result = runPython([
     "verifiers/standalone_verify.py",
     "certificates/MANIFEST.json",

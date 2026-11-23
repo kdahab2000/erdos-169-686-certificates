@@ -87,7 +87,7 @@ def _active_bound(
 
 def _parse_tree(proof: Mapping[str, Any]) -> List[Mapping[str, Any]]:
     tree = proof.get("tree")
-    if not isinstance(tree, list) or not tree:
+    if not isinstance(tree, list) or not tree or len(tree) > 2000000:
         raise CertificateError("proof tree must be a non-empty array")
     return [require_object(node, f"tree[{index}]") for index, node in enumerate(tree)]
 
@@ -141,6 +141,8 @@ def replay_proof(
             raise CertificateError(f"expected schema {PROOF_SCHEMA!r}")
         k = canonical_integer(proof["k"], "k", 3)
         n = canonical_integer(proof["N"], "N", 1)
+        if n > 256 or k > 256:
+            raise CertificateError("proof dimension cap")
         raw_witness = proof["witness"]
         if not isinstance(raw_witness, list):
             raise CertificateError("proof witness must be an array")
@@ -168,6 +170,8 @@ def replay_proof(
             from .v169 import validate_finite
 
             checked = validate_finite(witness)
+            if checked["k"] != k or checked["N"] != n:
+                raise CertificateError("witness k/N differs from proof")
             if checked["members"] != witness_members:
                 raise CertificateError("embedded witness differs from proof witness")
 

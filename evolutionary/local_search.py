@@ -73,7 +73,7 @@ def tabu_search(
     tabu: Dict[int, int] = {}
     for iteration in range(iterations):
         candidate = neighbour(current, n, k, rng)
-        if candidate in tabu and tabu[candidate] > iteration:
+        if frozenset(candidate) in tabu and tabu[frozenset(candidate)] > iteration:
             continue
         if score(candidate) > score(current):
             current = candidate
@@ -81,7 +81,7 @@ def tabu_search(
             current = candidate
         if score(current) > score(best):
             best = set(current)
-        tabu[current] = iteration + 10
+        tabu[frozenset(current)] = iteration + 10
     return {
         "algorithm": "tabu",
         "members": [str(value) for value in sorted(best)],
@@ -139,3 +139,18 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def head_delta_move(added, forbidden_edges, seed=1, head_limit=None):
+    """Seeded coupled add/remove repair, choosing cheap reciprocal victims."""
+    rng = random.Random(seed)
+    removed = set()
+    edges = list(forbidden_edges)
+    rng.shuffle(edges)
+    for edge in edges:
+        if not removed.intersection(edge):
+            options = {x for x in edge if x not in added and (head_limit is None or x < head_limit)}
+            if not options:
+                return None
+            removed.add(max(options))
+    return removed

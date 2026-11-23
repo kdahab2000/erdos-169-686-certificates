@@ -63,8 +63,8 @@ def active_disjoint_ap_pairs(
             active = terms & undecided
             if active:
                 candidates.append((start, difference, active))
-    # Prefer progressions with more unresolved terms, then smaller starts.
-    candidates.sort(key=lambda item: (-len(item[2]), item[0], item[1]))
+    # Pack by the greatest exact minimum undecided reciprocal weight.
+    candidates.sort(key=lambda item: (-Fraction(1, max(item[2])), item[0], item[1]))
     occupied: Set[int] = set()
     selected: List[Tuple[int, int]] = []
     for start, difference, active in candidates:
@@ -105,127 +105,102 @@ def exact_upper_bound(
     return upper, pairs
 
 
-def solve(
-    k: int,
-    n: int,
-    max_nodes: int = 2_000_000,
-    max_seconds: float = 300.0,
-) -> Dict[str, object]:
-    if k < 3:
-        raise ValueError("k must be at least 3")
-    if n < 1:
-        raise ValueError("N must be positive")
+def solve(k, n, max_nodes=2000000, max_seconds=300, warm_start=None):
+    if not 3 <= k <= 256 or not 1 <= n <= 256:
+        raise ValueError("invalid bounded dimensions")
     common = 1
-    for member in range(1, n + 1):
-        common = lcm(common, member)
-    progressions = all_progressions(n, k)
-    terms_by_pair = {
-        (start, difference): terms for start, difference, terms in progressions
-    }
-    nodes: List[Dict[str, object]] = []
-    incumbent_members: Set[int] = set()
-    incumbent_weight = -1
-    started = time.monotonic()
+    for j in range(1, n+1):
+        common = lcm(common, j)
+    weights = [common//j for j in range(1, n+1)]
+    aps = [(a,d,sum(1 << (j-1) for j in terms)) for a,d,terms in all_progressions(n,k)]
+    incidence = [[] for _ in range(n)]
+    for a,d,mask in aps:
+        for j in range(n):
+            if mask >> j & 1:
+                incidence[j].append(mask)
+    full = (1 << n)-1
+    nodes = []
+    incumbent = -1
+    best = 0
     complete = True
-    node_count = 0
-
-    def weight(values: Set[int]) -> int:
-        return sum(common // member for member in values)
-
-    def upper_bound(
-        selected: Set[int], excluded: Set[int], undecided: Set[int]
-    ) -> Tuple[int, List[Tuple[int, int]]]:
-        candidates: List[Tuple[int, int, Set[int]]] = []
-        for start, difference, terms in progressions:
-            term_set = set(terms)
-            if term_set & excluded:
-                continue
-            active = term_set & undecided
-            if active:
-                candidates.append((start, difference, active))
-        candidates.sort(key=lambda item: (-len(item[2]), item[0], item[1]))
-        occupied: Set[int] = set()
-        pairs: List[Tuple[int, int]] = []
-        deduction = 0
-        for start, difference, active in candidates:
-            if occupied & active:
-                continue
-            pairs.append((start, difference))
-            occupied.update(active)
-            deduction += min(common // member for member in active)
-        bound = weight(selected) + weight(undecided) - deduction
-        return bound, pairs
-
-    def visit(selected: Set[int], excluded: Set[int]) -> None:
-        nonlocal incumbent_members, incumbent_weight, complete, node_count
-        node_count += 1
-        if node_count > max_nodes:
-            complete = False
-            raise NodeLimit
-        if time.monotonic() - started > max_seconds:
-            complete = False
+    started = time.monotonic()
+    warm = set(warm_start or [])
+    if any(j < 1 or j > n for j in warm) or contains_ap(warm, k):
+        raise ValueError("invalid warm witness")
+    warm_mask = sum(1 << (j-1) for j in warm)
+    def weight(mask):
+        result = 0
+        while mask:
+            bit = mask & -mask
+            result += weights[bit.bit_length()-1]
+            mask ^= bit
+        return result
+    def visit(selected, excluded, current, infeasible=False):
+        nonlocal incumbent, best
+        if len(nodes) >= max_nodes or time.monotonic()-started > max_seconds:
             raise NodeLimit
         index = len(nodes)
         nodes.append({})
-        undecided = set(range(1, n + 1)) - selected - excluded
-        if contains_ap(selected, k):
-            nodes[index] = {"op": "leaf", "status": "infeasible"}
-            return
+        if infeasible:
+            nodes[index] = {"op":"leaf", "status":"infeasible"}
+            return index
+        undecided = full ^ (selected | excluded)
         if not undecided:
-            nodes[index] = {"op": "leaf", "status": "feasible"}
-            candidate_weight = weight(selected)
-            if candidate_weight > incumbent_weight:
-                incumbent_members = set(selected)
-                incumbent_weight = candidate_weight
-            return
-        bound, pairs = upper_bound(selected, excluded, undecided)
-        if bound <= incumbent_weight:
-            nodes[index] = {
-                "op": "prune",
-                "aps": [[str(start), str(difference)] for start, difference in pairs],
-            }
-            return
-        member = min(undecided)
-        nodes[index] = {
-            "op": "branch",
-            "j": str(member),
-            "include": "",
-            "exclude": "",
-        }
-        include_index = len(nodes)
-        visit(selected | {member}, excluded)
-        exclude_index = len(nodes)
-        visit(selected, excluded | {member})
-        nodes[index]["include"] = str(include_index)
-        nodes[index]["exclude"] = str(exclude_index)
-
+            nodes[index] = {"op":"leaf", "status":"feasible"}
+            if current > incumbent:
+                incumbent, best = current, selected
+            return index
+        active = []
+        forced = 0
+        for a,d,mask in aps:
+            if mask & excluded:
+                continue
+            todo = mask & undecided
+            if todo:
+                cost = weights[todo.bit_length()-1]
+                active.append((-cost, a,d,todo))
+                if todo & (todo-1) == 0:
+                    forced |= todo
+        active.sort()
+        occupied = 0
+        deduction = 0
+        pairs = []
+        for negative,a,d,todo in active:
+            if not todo & occupied:
+                occupied |= todo
+                deduction -= negative
+                pairs.append([str(a),str(d)])
+        if current+weight(undecided)-deduction <= incumbent:
+            nodes[index] = {"op":"prune", "aps":pairs}
+            return index
+        bit = (forced or undecided) & -(forced or undecided)
+        j = bit.bit_length()-1
+        nodes[index] = {"op":"branch", "j":str(j+1), "include":"", "exclude":""}
+        def include():
+            new = selected | bit
+            bad = any(mask & new == mask for mask in incidence[j])
+            return visit(new,excluded,current+weights[j],bad)
+        def exclude():
+            return visit(selected,excluded|bit,current)
+        # Dive through a feasible previous-prefix witness before pruning.
+        if incumbent < 0 and warm_start is not None and not bit & warm_mask:
+            exc = exclude(); inc = include()
+        else:
+            inc = include(); exc = exclude()
+        nodes[index]["include"], nodes[index]["exclude"] = str(inc),str(exc)
+        return index
     try:
-        visit(set(), set())
+        visit(0,0,0)
     except NodeLimit:
         complete = False
-
-    if incumbent_weight < 0:
-        incumbent_members = set()
-        incumbent_weight = 0
-    witness = sorted(incumbent_members)
-    score = sum((Fraction(1, member) for member in witness), Fraction(0, 1))
-    proof: Dict[str, object] = {
-        "schema": "erd169.bnb.v1",
-        "k": str(k),
-        "N": str(n),
-        "witness": [str(member) for member in witness],
-        "witness_score": {"num": str(score.numerator), "den": str(score.denominator)},
-        "incumbent_weight": str(incumbent_weight),
-        "tree": nodes,
-    }
-    return {
-        "complete": complete,
-        "proof": proof,
-        "nodes": node_count,
-        "witness": witness,
-        "score": score,
-        "seconds": time.monotonic() - started,
-    }
+    witness = [j+1 for j in range(n) if best >> j & 1]
+    score = sum((Fraction(1,j) for j in witness),Fraction())
+    proof = {"schema":"erd169.bnb.v1", "k":str(k), "N":str(n),
+             "witness":list(map(str,witness)),
+             "witness_score":{"num":str(score.numerator),"den":str(score.denominator)},
+             "incumbent_weight":str(max(incumbent,0)), "tree":nodes}
+    return {"complete":complete,"proof":proof,"nodes":len(nodes),"witness":witness,
+            "score":score,"seconds":time.monotonic()-started}
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
@@ -234,15 +209,16 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     parser.add_argument("--N", type=int, required=True)
     parser.add_argument("--max-nodes", type=int, default=2_000_000)
     parser.add_argument("--max-seconds", type=float, default=300.0)
-    parser.add_argument("--output", type=str)
+    parser.add_argument("--output", "--proof-out", dest="output", type=str)
     args = parser.parse_args(argv)
     result = solve(args.k, args.N, args.max_nodes, args.max_seconds)
     payload = canonical_json_bytes(result["proof"])
-    if args.output:
+    if args.output and result["complete"]:
         with open(args.output, "wb") as handle:
             handle.write(payload)
             handle.write(b"\n")
     summary = {
+        "proof": result["proof"] if result["complete"] else None,
         "k": args.k,
         "N": args.N,
         "complete": result["complete"],

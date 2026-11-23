@@ -8,6 +8,8 @@ used anywhere in this module.
 from __future__ import annotations
 
 from fractions import Fraction
+from math import isqrt
+from .standalone_verify import resolve_digest
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from .common import (
@@ -132,9 +134,19 @@ def validate_prefix(certificate: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def verify_prefix(certificate: Mapping[str, Any]) -> Dict[str, Any]:
-    details = validate_prefix(certificate)
-    return {"valid": True, **details}
+def verify_prefix(certificate, base_dir=None):
+    from .standalone_verify import verify_prefix as independent_prefix, resolve_digest
+    from .proof_replay import replay_proof
+    validate_prefix(certificate)
+    try:
+        answer = independent_prefix(certificate, base_dir)
+        checked = replay_proof(resolve_digest(certificate["proof_sha256"], base_dir),
+                               resolve_digest(certificate["witness_sha256"], base_dir))
+        if not checked.get("valid"):
+            raise CertificateError(str(checked))
+        return answer
+    except ValueError as exc:
+        raise CertificateError(str(exc)) from exc
 
 
 def _is_k_ap_free(values: Iterable[int], k: int) -> bool:
@@ -272,6 +284,8 @@ def validate_digitset(certificate: Mapping[str, Any]) -> Dict[str, Any]:
         raise CertificateError("L must be at least 1")
     if q < 1:
         raise CertificateError("Q must be at least 1")
+    if level > 20 or len(digits)**(level-1) > 2000000:
+        raise CertificateError("digit enumeration cap")
     exact_head = _head_lower_bound(base, digits, s, level, q)
     exact_tail = _tail_lower_bound(base, digits, s, level)
     claimed_head = canonical_fraction_object(certificate["head_lb"], "head_lb")
@@ -305,12 +319,180 @@ def verify_digitset(certificate: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def verify_certificate(certificate: Mapping[str, Any]) -> Dict[str, Any]:
+def padded_member(x, digits, base=5):
+    if x < 0:
+        return False
+    while x:
+        if x % base not in digits:
+            return False
+        x //= base
+    return 0 in digits
+
+
+def tail_compatible(a, s, level, digits, state_cap=200000):
+    """Decide existence of four tail terms after a by signed base-5 carries.
+
+    States retain the position only up to L. Beyond L the transition is
+    stationary; revisiting a state cannot yield a new finite accepting path.
+    An accepting path is a finite nonzero difference with four outputs >=5^L.
+    """
+    from collections import deque
+    initial = ((a-s,)*4, 0, False, 0)
+    queue = deque([initial])
+    seen = {initial}
+    while queue:
+        carries, high, nonzero, pos = queue.popleft()
+        if carries == (0, 0, 0, 0) and high == 15 and nonzero:
+            return False
+        for digit in range(5):
+            values = [c + j*digit for j, c in enumerate(carries, 1)]
+            outputs = [v % 5 for v in values]
+            if any(v not in digits for v in outputs):
+                continue
+            mask = high
+            if pos >= level:
+                for j, v in enumerate(outputs):
+                    if v:
+                        mask |= 1 << j
+            state = (tuple(v//5 for v in values), mask,
+                     nonzero or digit != 0, min(level, pos+1))
+            if state not in seen:
+                if len(seen) >= state_cap:
+                    raise CertificateError("inconclusive: carry state cap")
+                seen.add(state)
+                queue.append(state)
+    return True
+
+
+def block_enclosure(base, digits, s, depth):
+    if not 1 <= depth <= 20 or len(digits)**depth > 2000000:
+        raise CertificateError("block enumeration cap")
+    values = [0]
+    for _ in range(depth):
+        values = [base*x+d for x in values for d in digits]
+    head = Fraction()
+    lower_tail = Fraction()
+    upper_tail = Fraction()
+    ratio_sum = Fraction(len(digits), base-len(digits))
+    for x in values:
+        head += Fraction(1, s+x)
+        if x >= base**(depth-1):
+            lower_tail += Fraction(1, x+1+s)*ratio_sum
+            upper_tail += Fraction(1, x)*ratio_sum
+        if max(head.denominator.bit_length(), lower_tail.denominator.bit_length(),
+               upper_tail.denominator.bit_length()) > 4096:
+            raise CertificateError("exact enclosure exceeds 4096-bit rational cap")
+    return head+lower_tail, head+upper_tail
+
+
+def verify_block_digit(cert):
+    require_exact_keys(cert, ("schema", "k", "p", "block_len", "D", "s", "depth", "lb", "ub"), "block digit")
+    if cert["schema"] != "erd169.block_digit.v1":
+        raise CertificateError("wrong block digit schema")
+    p = canonical_integer(cert["p"], "p", 2)
+    k = canonical_integer(cert["k"], "k", 3)
+    length = canonical_integer(cert["block_len"], "block_len", 1)
+    depth = canonical_integer(cert["depth"], "depth", 1)
+    s = canonical_integer(cert["s"], "s", 1)
+    if p > 127 or k > 256 or length > 4:
+        raise CertificateError("block parameter cap")
+    if any(p % q == 0 for q in range(2, isqrt(p)+1)) or k < p:
+        raise CertificateError("p must be prime and k >= p")
+    base = p**length
+    if not isinstance(cert["D"], list):
+        raise CertificateError("D must be an array")
+    digits = [canonical_integer(x, "D", 0) for x in cert["D"]]
+    if (not digits or digits != sorted(set(digits)) or digits[0] != 0
+            or digits[-1] >= base or len(digits) >= base):
+        raise CertificateError("D must be proper, padded, sorted and contain zero")
+    if base*len(digits)*p > 2000000:
+        raise CertificateError("cyclic AP audit cap")
+    present = set(digits)
+    for w in range(1, base):
+        for a in digits:
+            if all((a+j*w) % base in present for j in range(p)):
+                raise CertificateError("D contains a cyclic p-AP")
+    lb, ub = block_enclosure(base, digits, s, depth)
+    if canonical_fraction_object(cert["lb"], "lb") != lb or canonical_fraction_object(cert["ub"], "ub") != ub:
+        raise CertificateError("block enclosure mismatch")
+    return {"valid": True, "lb": fraction_object(lb), "ub": fraction_object(ub)}
+
+
+def signed_delta_fraction(obj):
+    if not isinstance(obj, dict):
+        raise CertificateError("delta must be a rational object")
+    require_exact_keys(obj, ("num", "den"), "delta")
+    raw = obj["num"]
+    if isinstance(raw, str) and raw.startswith("-"):
+        numerator = -canonical_integer(raw[1:], "delta.num magnitude", 1)
+    else:
+        numerator = canonical_integer(raw, "delta.num", 0)
+    denominator = canonical_integer(obj["den"], "delta.den", 1)
+    value = Fraction(numerator, denominator)
+    if value.numerator != numerator or value.denominator != denominator:
+        raise CertificateError("delta must be reduced")
+    return value
+
+
+def verify_head_tail(cert, base_dir=None):
+    require_exact_keys(cert, ("schema", "k", "p", "D", "s", "L", "added", "removed", "delta", "pure_ref_sha256"), "head tail")
+    if cert["schema"] != "erd169.head_tail.v1" or cert["k"] != "5" or cert["p"] != "5":
+        raise CertificateError("head tail requires p=k=5")
+    s = canonical_integer(cert["s"], "s", 1)
+    level = canonical_integer(cert["L"], "L", 1)
+    if level > 9:
+        raise CertificateError("head level cap")
+    if not isinstance(cert["D"], list):
+        raise CertificateError("D must be an array")
+    digits = [canonical_integer(x, "D", 0) for x in cert["D"]]
+    if not digits or digits != sorted(set(digits)) or digits[0] != 0 or digits[-1] > 4 or len(digits) == 5:
+        raise CertificateError("invalid padded digits")
+    cutoff = s+5**level
+    parsed = []
+    for label in ("added", "removed"):
+        if not isinstance(cert[label], list):
+            raise CertificateError("head delta must be arrays")
+        values = [canonical_integer(x, label, 1) for x in cert[label]]
+        if values != sorted(set(values)) or any(x >= cutoff for x in values):
+            raise CertificateError("head delta ordering/range")
+        if any(padded_member(x-s, digits) != (label == "removed") for x in values):
+            raise CertificateError("head delta membership")
+        parsed.append(set(values))
+    added, removed = parsed
+    if len(added)*5*cutoff > 20000000:
+        raise CertificateError("inconclusive: head audit cap")
+    def member(x):
+        return x > 0 and (x in added or (x not in removed and padded_member(x-s, digits)))
+    for a in sorted(added):
+        for i in range(5):
+            for d in range(1, cutoff-1):
+                start = a-i*d
+                if start > 0 and all(member(start+j*d) for j in range(5)):
+                    raise CertificateError("head delta creates an AP")
+        if not tail_compatible(a, s, level, digits):
+            raise CertificateError("head delta creates a cross-boundary AP")
+    delta = sum((Fraction(1,x) for x in added), Fraction()) - sum((Fraction(1,x) for x in removed), Fraction())
+    if signed_delta_fraction(cert["delta"]) != delta:
+        raise CertificateError("delta mismatch")
+    if base_dir is None:
+        raise CertificateError("pure reference requires certificate directory")
+    ref = resolve_digest(cert["pure_ref_sha256"], base_dir)
+    verify_block_digit(ref)
+    if ref["p"] != "5" or ref["block_len"] != "1" or ref["D"] != cert["D"] or ref["s"] != cert["s"]:
+        raise CertificateError("pure reference mismatch")
+    return {"valid": True, "delta": fraction_object(delta)}
+
+
+def verify_certificate(certificate: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
     schema = certificate.get("schema") if isinstance(certificate, dict) else None
+    if schema == "erd169.block_digit.v1":
+        return verify_block_digit(certificate)
+    if schema == "erd169.head_tail.v1":
+        return verify_head_tail(certificate, base_dir)
     if schema == FINITE_SCHEMA:
         return verify_finite(certificate)
     if schema == PREFIX_SCHEMA:
-        return verify_prefix(certificate)
+        return verify_prefix(certificate, base_dir)
     if schema == DIGITSET_SCHEMA:
         return verify_digitset(certificate)
     return result(False, errors=[f"unsupported schema: {schema!r}"])

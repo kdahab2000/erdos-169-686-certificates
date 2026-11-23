@@ -41,37 +41,69 @@ def representation_certificate(n_value: int, k: int, n: int, m: int) -> Dict[str
     }
 
 
-def search(
-    n_value: int,
-    k_values: Iterable[int],
-    n_max: int = 10_000,
-) -> Dict[str, object]:
-    if n_value < 2:
-        raise ValueError("N must be at least 2")
-    ordered_k = sorted(set(k_values))
-    for k in ordered_k:
-        if k < 2:
-            raise ValueError("k must be at least 2")
-        for n in range(1, n_max + 1):
-            m = _m_for_n(n_value, k, n)
-            if m is not None:
-                return {
-                    "status": "found",
-                    "certificate": representation_certificate(n_value, k, n, m),
-                }
+def prime_valuation_factorial(n, p):
+    total = 0
+    while n:
+        n //= p
+        total += n
+    return total
+
+
+def binomial_valuation(t, k, p):
+    return (prime_valuation_factorial(t+k,p)-prime_valuation_factorial(t,p)
+            -prime_valuation_factorial(k,p))
+
+
+def sieve_data(n_value, k):
+    # For p>k, binom(t+k,k) is a polynomial modulo p, of period p.
+    primes = [p for p in range(k+1,k+40)
+              if all(p % q for q in range(2,isqrt(p)+1))][:2]
+    result = []
+    for p in primes:
+        image = {comb(t+k,k)%p for t in range(p)}
+        residues = {r for r in range(p) if n_value*comb(r+k,k)%p in image}
+        result.append((p,residues))
+    return result
+
+
+def sweep(n_value, k, n_max, sieves=True):
+    m, fm = 1, comb(1+k,k)
+    fn = comb(1+k,k)
+    filters = sieve_data(n_value,k) if sieves else []
+    for n in range(1,n_max+1):
+        if all(n % p in residues for p,residues in filters):
+            target = n_value*fn
+            while m < n+k or fm < target:
+                fm = fm*(m+k+1)//(m+1)
+                m += 1
+            # Legendre valuations are an exact independent necessary test.
+            if fm == target and all(
+                binomial_valuation(m,k,p) == binomial_valuation(n,k,p)
+                + prime_valuation_factorial(n_value,p)-prime_valuation_factorial(n_value-1,p)
+                for p in (2,3,5,7)):
+                yield n,m
+        fn = fn*(n+k+1)//(n+1)
+
+
+def search(n_value, k_values, n_max=10000):
+    if n_value < 2 or n_max < 1:
+        raise ValueError("invalid search bounds")
+    ks = sorted(set(k_values))
+    if not ks or min(ks) < 2 or max(ks) > 100:
+        raise ValueError("invalid k values")
+    certificates = [representation_certificate(n_value,k,n,m)
+                    for k in ks for n,m in sweep(n_value,k,n_max)]
+    if certificates:
+        return {"status":"found", "certificate":certificates[0],
+                "certificates":certificates}
     root = isqrt(n_value)
-    square = root * root == n_value
-    return {
-        "status": "not_found_in_box",
-        "certificate": {
-            "schema": "erd686.null.v1",
-            "s": str(root if square else n_value),
-            "k_set": [str(k) for k in ordered_k],
-            "method": "bounded_box",
-            "box": {"k_max": str(max(ordered_k)), "n_max": str(n_max)},
-            "domain": "n>=1",
-        },
-    }
+    certificate = None
+    if root*root == n_value and len(ks)*n_max <= 6000000:
+        certificate = {"schema":"erd686.null.v1", "s":str(root),
+                       "k_set":list(map(str,ks)),"method":"bounded_box",
+                       "box":{"k_max":str(max(ks)),"n_max":str(n_max)},"domain":"n>=1"}
+    return {"status":"not_found_in_box", "certificate":certificate,
+            "certificates":[], "N":str(n_value)}
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
@@ -82,7 +114,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     parser.add_argument("--n-max", type=int, default=10_000)
     parser.add_argument("--skip", action="append", default=[])
     args = parser.parse_args(argv)
-    skip = {2, 4}
+    skip = {2, 4} | {int(k) for item in args.skip for k in item.split(",")}
     k_values = [k for k in range(args.k_min, args.k_max + 1) if k not in skip]
     result = search(args.N, k_values, args.n_max)
     print(json.dumps(result, sort_keys=True))

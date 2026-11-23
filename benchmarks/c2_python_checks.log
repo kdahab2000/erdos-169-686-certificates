@@ -1,0 +1,42 @@
+test_automaton_brute_force_small (test_campaign2.Campaign2Tests.test_automaton_brute_force_small) ... ok
+test_block_and_cap (test_campaign2.Campaign2Tests.test_block_and_cap) ... ok
+test_exhaustive_prefixes (test_campaign2.Campaign2Tests.test_exhaustive_prefixes) ... ok
+test_forged_leaves (test_campaign2.Campaign2Tests.test_forged_leaves) ... ok
+test_head_reference_roundtrip_and_binding (test_campaign2.Campaign2Tests.test_head_reference_roundtrip_and_binding) ... ok
+test_legacy_digitset_does_not_inherit_prime_rule (test_campaign2.Campaign2Tests.test_legacy_digitset_does_not_inherit_prime_rule) ... ok
+test_local_runner_saves_replayable_proof (test_campaign2.Campaign2Tests.test_local_runner_saves_replayable_proof) ... ok
+test_null_forgery_and_bounds (test_campaign2.Campaign2Tests.test_null_forgery_and_bounds) ... ok
+test_prefix_binding (test_campaign2.Campaign2Tests.test_prefix_binding) ... ok
+test_square_sweep_oracle_and_nonsquare (test_campaign2.Campaign2Tests.test_square_sweep_oracle_and_nonsquare) ... ok
+test_tail_fixtures_and_internal_aps (test_campaign2.Campaign2Tests.test_tail_fixtures_and_internal_aps) ... ok
+test_verifiers_do_not_use_floating_point (test_no_float.NoFloatTests.test_verifiers_do_not_use_floating_point) ... ok
+test_standalone_matches_lab_686_verifier (test_parity.ParityTests.test_standalone_matches_lab_686_verifier) ... ok
+test_standalone_matches_lab_finite_verifier (test_parity.ParityTests.test_standalone_matches_lab_finite_verifier) ... ok
+test_standalone_rejects_duplicate_json_keys (test_parity.ParityTests.test_standalone_rejects_duplicate_json_keys) ... ok
+test_solver_proof_replays (test_replay.ReplayTests.test_solver_proof_replays) ... ok
+test_tampered_witness_is_rejected (test_replay.ReplayTests.test_tampered_witness_is_rejected) ... ok
+test_boolean_integer_is_rejected (test_standalone.StandaloneTests.test_boolean_integer_is_rejected) ... ok
+test_duplicate_keys_are_rejected (test_standalone.StandaloneTests.test_duplicate_keys_are_rejected) ... ok
+test_float_is_rejected (test_standalone.StandaloneTests.test_float_is_rejected) ... ok
+test_manifest_has_valid_entries (test_standalone.StandaloneTests.test_manifest_has_valid_entries) ... ok
+test_rejects_arithmetic_progression (test_v169.V169Tests.test_rejects_arithmetic_progression) ... ok
+test_rejects_boolean_k (test_v169.V169Tests.test_rejects_boolean_k) ... ok
+test_rejects_boolean_score_component (test_v169.V169Tests.test_rejects_boolean_score_component) ... ok
+test_rejects_duplicate_members (test_v169.V169Tests.test_rejects_duplicate_members) ... ok
+test_rejects_integer_instead_of_decimal_string (test_v169.V169Tests.test_rejects_integer_instead_of_decimal_string) ... ok
+test_rejects_unknown_field (test_v169.V169Tests.test_rejects_unknown_field) ... ok
+test_rejects_wrong_score (test_v169.V169Tests.test_rejects_wrong_score) ... ok
+test_valid_finite_set (test_v169.V169Tests.test_valid_finite_set) ... ok
+test_known_witnesses (test_v686.V686Tests.test_known_witnesses) ... ok
+test_null_certificate_is_accepted (test_v686.V686Tests.test_null_certificate_is_accepted) ... ok
+test_rejects_boundary_violation (test_v686.V686Tests.test_rejects_boundary_violation) ... ok
+test_rejects_k_one (test_v686.V686Tests.test_rejects_k_one) ... ok
+test_rejects_m_below_n_plus_k (test_v686.V686Tests.test_rejects_m_below_n_plus_k) ... ok
+test_rejects_n_zero (test_v686.V686Tests.test_rejects_n_zero) ... ok
+test_rejects_unknown_field (test_v686.V686Tests.test_rejects_unknown_field) ... ok
+test_squares_four_and_twentyfive_have_no_k2_or_k4 (test_v686.V686Tests.test_squares_four_and_twentyfive_have_no_k2_or_k4) ... ok
+
+----------------------------------------------------------------------
+Ran 37 tests in 1.908s
+
+OK

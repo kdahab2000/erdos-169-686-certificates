@@ -1,0 +1,1 @@
+{"N":"1","incumbent_weight":"1","k":"3","schema":"erd169.bnb.v1","tree":[{"exclude":"2","include":"1","j":"1","op":"branch"},{"op":"leaf","status":"feasible"},{"op":"leaf","status":"feasible"}],"witness":["1"],"witness_score":{"den":"1","num":"1"}}

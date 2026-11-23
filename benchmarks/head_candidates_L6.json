@@ -1,0 +1,11 @@
+{
+  "L": "6",
+  "s": "1",
+  "scanned_through": "15625",
+  "complete": true,
+  "tail_compatible": [
+    "3380",
+    "8340"
+  ],
+  "elapsed_ns": "819663208"
+}

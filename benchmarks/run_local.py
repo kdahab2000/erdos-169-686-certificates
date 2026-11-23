@@ -52,7 +52,7 @@ def _run_json(command: Sequence[str], timeout: int) -> Dict[str, Any]:
 
 
 def run_169(
-    k: int, n_values: Sequence[int], seed: int, max_seconds: int
+    k: int, n_values: Sequence[int], seed: int, max_seconds: int, proof_out=None
 ) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     for n in n_values:
@@ -76,6 +76,9 @@ def run_169(
             results.append({"track": "169", "k": str(k), "N": str(n), "status": "timeout"})
             continue
         elapsed = time.monotonic() - started
+        if not output.get("complete"):
+            results.append({"track":"169", "k":str(k), "N":str(n), "status":"INCOMPLETE"})
+            continue
         proof = output.get("proof")
         if not isinstance(proof, dict):
             results.append({"track": "169", "k": str(k), "N": str(n), "status": "invalid_output"})
@@ -99,6 +102,10 @@ def run_169(
                 "seconds": elapsed,
             })
             continue
+        if proof_out and status == "PREFIX_OPTIMAL":
+            folder = Path(proof_out)
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / f"g{k}_{n}.json").write_bytes(proof_bytes+b"\n")
         results.append({
             "track": "169",
             "k": str(k),
@@ -143,11 +150,12 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     parser.add_argument("--s-max", type=int, default=100)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--max-seconds", type=int, default=600)
+    parser.add_argument("--proof-out", type=str)
     parser.add_argument("--output", type=str)
     args = parser.parse_args(argv)
     if args.track == "169":
         n_values = [int(value) for value in args.n_values.split(",") if value]
-        results = run_169(args.k, n_values, args.seed, args.max_seconds)
+        results = run_169(args.k, n_values, args.seed, args.max_seconds, args.proof_out)
     else:
         results = run_686(args.s_max, args.seed, args.max_seconds)
     payload = {

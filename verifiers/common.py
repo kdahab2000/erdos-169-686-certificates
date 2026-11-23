@@ -53,6 +53,7 @@ def strict_json_loads(text: str) -> Any:
         text,
         object_pairs_hook=_unique_object,
         parse_float=_reject_float,
+        parse_constant=_reject_float,
         parse_int=_reject_int,
     )
 
@@ -64,6 +65,7 @@ def plain_json_loads(text: str) -> Any:
         text,
         object_pairs_hook=_unique_object,
         parse_float=_reject_float,
+        parse_constant=_reject_float,
     )
 
 

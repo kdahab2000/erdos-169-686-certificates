@@ -47,6 +47,8 @@ def validate_representation(certificate: Mapping[str, Any]) -> Dict[str, Any]:
     k = canonical_integer(certificate["k"], "k", 2)
     n = canonical_integer(certificate["n"], "n", 1)
     m = canonical_integer(certificate["m"], "m", 1)
+    if k > 10000 or max(n, m).bit_length() > 256:
+        raise CertificateError("representation resource cap")
     if m < n + k:
         raise CertificateError("m must satisfy m >= n + k")
 
@@ -79,42 +81,81 @@ def verify_representation(certificate: Mapping[str, Any]) -> Dict[str, Any]:
     return {"valid": True, **details}
 
 
-def validate_null(certificate: Mapping[str, Any]) -> Dict[str, Any]:
-    certificate = require_object(certificate, "null certificate")
-    require_exact_keys(
-        certificate,
-        ("schema", "s", "k_set", "method", "box", "domain"),
-        "null certificate",
-    )
-    if certificate["schema"] != NULL_SCHEMA:
-        raise CertificateError(f"expected schema {NULL_SCHEMA!r}")
-    s = canonical_integer(certificate["s"], "s", 2)
-    raw_k_set = require_array(certificate["k_set"], "k_set")
-    k_set = [canonical_integer(item, f"k_set[{index}]", 2) for index, item in enumerate(raw_k_set)]
-    if k_set != sorted(set(k_set)):
-        raise CertificateError("k_set must be strictly increasing")
-    method = certificate["method"]
-    if method not in ("divisor_complete", "bounded_box"):
-        raise CertificateError("unknown null-certificate method")
-    box = certificate["box"]
-    if method == "divisor_complete":
-        if box is not None:
-            raise CertificateError("divisor_complete null certificates must have box=null")
-    else:
-        box = require_object(box, "box")
+def box_hits(n_value, k, n_max):
+    """Monotone exact merge; never bounds m by n_max."""
+    m = 1
+    fm = comb(m + k, k)
+    fn = comb(1 + k, k)
+    for n in range(1, n_max + 1):
+        target = n_value * fn
+        while m < n + k or fm < target:
+            fm = fm * (m + k + 1) // (m + 1)
+            m += 1
+        if fm == target:
+            yield n, m
+        fn = fn * (n + k + 1) // (n + 1)
+
+
+def divisor_has_hit(s, k):
+    value = s * s - 1
+    for lower in range(1, isqrt(value) + 1):
+        if value % lower:
+            continue
+        upper = value // lower
+        if (lower + upper) % 2 or ((lower + upper) // 2) % s:
+            continue
+        y = (lower + upper) // (2 * s)
+        x = (upper - lower) // 2
+        if k == 2:
+            if y >= 5 and y % 2 and x % 2 and (x-y)//2 >= 2:
+                return True
+        else:
+            ry, rx = isqrt(4*y+5), isqrt(4*x+5)
+            if (ry*ry == 4*y+5 and rx*rx == 4*x+5 and ry >= 7
+                    and (ry-5) % 2 == 0 and (rx-5) % 2 == 0
+                    and (rx-ry)//2 >= 4):
+                return True
+    return False
+
+
+def verify_null(cert):
+    require_exact_keys(cert, ("schema", "s", "k_set", "method", "box", "domain"), "null")
+    if cert["schema"] != "erd686.null.v1" or cert["domain"] != "n>=1":
+        raise CertificateError("wrong null schema/domain")
+    s = canonical_integer(cert["s"], "s", 2)
+    if s > 10000:
+        raise CertificateError("null root resource cap")
+    if not isinstance(cert["k_set"], list):
+        raise CertificateError("k_set must be an array")
+    ks = [canonical_integer(x, "k", 2) for x in cert["k_set"]]
+    if not ks or ks != sorted(set(ks)) or max(ks) > 100:
+        raise CertificateError("empty, unordered or excessive k_set")
+    if cert["method"] == "divisor_complete":
+        if cert["box"] is not None or any(k not in (2, 4) for k in ks):
+            raise CertificateError("invalid divisor domain")
+        if any(divisor_has_hit(s, k) for k in ks):
+            raise CertificateError("divisor null contains a representation")
+    elif cert["method"] == "bounded_box":
+        box = cert["box"]
+        if not isinstance(box, dict):
+            raise CertificateError("box must be an object")
         require_exact_keys(box, ("k_max", "n_max"), "box")
-        canonical_integer(box["k_max"], "box.k_max", 2)
-        canonical_integer(box["n_max"], "box.n_max", 1)
-    if certificate["domain"] != "n>=1":
-        raise CertificateError("null certificate domain must be n>=1")
-    return {"s": s, "k_set": k_set, "method": method, "domain": "n>=1"}
+        top = canonical_integer(box["k_max"], "k_max", 2)
+        limit = canonical_integer(box["n_max"], "n_max", 1)
+        if top != max(ks) or limit * len(ks) > 6000000:
+            raise CertificateError("box extent mismatch or resource cap")
+        for k in ks:
+            if next(box_hits(s*s, k, limit), None) is not None:
+                raise CertificateError("bounded null contains a representation")
+    else:
+        raise CertificateError("unknown null method")
+    return {"valid": True, "s": s, "k_set": ks, "method": cert["method"], "domain": "n>=1"}
 
 
-def verify_null(certificate: Mapping[str, Any]) -> Dict[str, Any]:
-    """Raise :class:`CertificateError` when a null certificate is invalid."""
-
-    details = validate_null(certificate)
-    return {"valid": True, **details}
+def validate_null(certificate):
+    """Preserve the historical low-level API, now with full replay."""
+    details = verify_null(certificate)
+    return {key: value for key, value in details.items() if key != "valid"}
 
 
 def verify_certificate(certificate: Mapping[str, Any]) -> Dict[str, Any]:
