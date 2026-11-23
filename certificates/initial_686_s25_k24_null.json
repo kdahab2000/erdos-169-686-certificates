@@ -1,0 +1,8 @@
+{
+  "schema": "erd686.null.v1",
+  "s": "25",
+  "k_set": ["2", "4"],
+  "method": "divisor_complete",
+  "box": null,
+  "domain": "n>=1"
+}

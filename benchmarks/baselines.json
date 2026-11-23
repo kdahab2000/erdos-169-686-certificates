@@ -1,0 +1,58 @@
+{
+  "schema": "erdos.baselines.v1",
+  "policy": "Every SOURCE_REPORTED_REQUIRES_LIVE_CHECK value is a ledger entry only and must be reconciled with the live problem page before a novelty claim.",
+  "entries": [
+    {
+      "id": "f3-3.00849",
+      "problem": 169,
+      "quantity": "f(k)",
+      "k": 3,
+      "N": null,
+      "printed_decimal": "3.00849",
+      "exact_lower": {"num": "300849", "den": "100000"},
+      "exact_upper_enclosure": {"num": "300850", "den": "100000"},
+      "source": "ERD-007 task brief; primary literature source not live-checked",
+      "date": "not-recorded",
+      "status": "SOURCE_REPORTED_REQUIRES_LIVE_CHECK"
+    },
+    {
+      "id": "f3-3.0085385",
+      "problem": 169,
+      "quantity": "f(k)",
+      "k": 3,
+      "N": null,
+      "printed_decimal": "3.0085385",
+      "exact_lower": {"num": "6017077", "den": "2000000"},
+      "exact_upper_enclosure": {"num": "6017078", "den": "2000000"},
+      "source": "ERD-007 task brief; rational arithmetic checked in ERD-009",
+      "date": "not-recorded",
+      "status": "SOURCE_REPORTED_REQUIRES_LIVE_CHECK"
+    },
+    {
+      "id": "f4-4.43975",
+      "problem": 169,
+      "quantity": "f(k)",
+      "k": 4,
+      "N": null,
+      "printed_decimal": "4.43975",
+      "exact_lower": {"num": "17759", "den": "4000"},
+      "exact_upper_enclosure": {"num": "1775901", "den": "400000"},
+      "source": "ERD-007 task brief; rational arithmetic checked in ERD-009",
+      "date": "not-recorded",
+      "status": "SOURCE_REPORTED_REQUIRES_LIVE_CHECK"
+    },
+    {
+      "id": "f4-4.4397534742",
+      "problem": 169,
+      "quantity": "f(k)",
+      "k": 4,
+      "N": null,
+      "printed_decimal": "4.4397534742",
+      "exact_lower": {"num": "22198767371", "den": "5000000000"},
+      "exact_upper_enclosure": {"num": "22198767372", "den": "5000000000"},
+      "source": "ERD-007 task brief; rational arithmetic checked in ERD-009",
+      "date": "not-recorded",
+      "status": "SOURCE_REPORTED_REQUIRES_LIVE_CHECK"
+    }
+  ]
+}

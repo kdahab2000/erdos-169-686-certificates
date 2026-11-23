@@ -1,0 +1,7 @@
+{
+  "schema": "erd169.finite.v1",
+  "k": "3",
+  "N": "3",
+  "members": ["1", "2"],
+  "score": {"num": "3", "den": "2"}
+}
