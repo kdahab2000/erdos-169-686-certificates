@@ -1,0 +1,24 @@
+{
+  "claim": "none",
+  "status": "measurement incomplete",
+  "setup_seconds": "0.016619541973341256",
+  "measurements": [
+    {
+      "mask": "507375",
+      "fibre_size": 16,
+      "nodes": 76083,
+      "bytes": 5570820,
+      "seconds": "20.001488042005803",
+      "status": "budget exceeded"
+    }
+  ],
+  "completed_orbits": 0,
+  "required_orbits": 791,
+  "bounds": {
+    "lower": 64,
+    "upper": 80
+  },
+  "cold_replay_seconds": null,
+  "projection_nodes": null,
+  "continuation": "Optimize pruning/branching and finish the prescribed measurement; no maximum certificate emitted."
+}

@@ -1,0 +1,228 @@
+ M CITATION.cff
+ M README.md
+ M benchmarks/oeis_tables.json
+ M certificates/MANIFEST.json
+ M docs/TRAPS.md
+ M solvers/z125_solver.py
+ M submissions/arxiv_note_draft.md
+ M submissions/build_oeis.py
+ M submissions/erdosproblems_PR_169.md
+ D submissions/oeis/b_g3_denominators.txt
+ D submissions/oeis/b_g3_numerators.txt
+ D submissions/oeis/b_g4_den.txt
+ D submissions/oeis/b_g4_num.txt
+ M submissions/oeis/b_g5_den.txt
+ M submissions/oeis/b_g5_num.txt
+ M submissions/oeis/b_g6_den.txt
+ M submissions/oeis/b_g6_num.txt
+ D submissions/oeis/b_tail_compat_base5.txt
+ M submissions/oeis/batch1_seq1_tail_compat_base5.txt
+ M submissions/oeis/batch1_seq2_g3_numerators.txt
+ M submissions/oeis/batch1_seq3_g3_denominators.txt
+ M submissions/oeis/batch2_g4_den.txt
+ M submissions/oeis/batch2_g4_num.txt
+ M submissions/oeis/batch2_g5_den.txt
+ M submissions/oeis/batch2_g5_num.txt
+ M submissions/oeis/batch2_g6_den.txt
+ M submissions/oeis/batch2_g6_num.txt
+ M tests/test_campaign3_oeis.py
+ M tests/test_campaign4_docs.py
+ M tests/test_campaign4_oeis.py
+ M tests/test_cyclic_max.py
+ M verifiers/standalone_verify.py
+ M verifiers/v169.py
+ M verifiers/v686.py
+?? benchmarks/c5_MANIFEST.json.log
+?? benchmarks/c5_MANIFEST_DEEP.json.log
+?? benchmarks/c5_campaign_tests_initial.log
+?? benchmarks/c5_changed_files.txt
+?? benchmarks/c5_default_replay.log
+?? benchmarks/c5_g6_55_replay.json
+?? benchmarks/c5_hash_manifest.log
+?? benchmarks/c5_legacy_bytes.json
+?? benchmarks/c5_node_bridge.log
+?? benchmarks/c5_pell.json
+?? benchmarks/c5_prefix.log
+?? benchmarks/c5_square_atlas.json
+?? benchmarks/c5_timings.json
+?? benchmarks/c5_unittest.log
+?? benchmarks/c5_v1_unchanged.json
+?? benchmarks/c5_z125_measure.json
+?? benchmarks/c5_z125_progress.json
+?? benchmarks/campaign5.py
+?? benchmarks/campaign5_results.json
+?? certificates/c5_686_pell_batch_2_1000.json
+?? certificates/c5_686_s100_k24_null.json
+?? certificates/c5_686_s10_k4_null.json
+?? certificates/c5_686_s11_k24_null.json
+?? certificates/c5_686_s12_k24_null.json
+?? certificates/c5_686_s13_k24_null.json
+?? certificates/c5_686_s14_k4_null.json
+?? certificates/c5_686_s15_k24_null.json
+?? certificates/c5_686_s16_k24_null.json
+?? certificates/c5_686_s17_k24_null.json
+?? certificates/c5_686_s18_k4_null.json
+?? certificates/c5_686_s19_k24_null.json
+?? certificates/c5_686_s20_k24_null.json
+?? certificates/c5_686_s21_k24_null.json
+?? certificates/c5_686_s22_k4_null.json
+?? certificates/c5_686_s23_k24_null.json
+?? certificates/c5_686_s24_k24_null.json
+?? certificates/c5_686_s26_k4_null.json
+?? certificates/c5_686_s27_k24_null.json
+?? certificates/c5_686_s28_k24_null.json
+?? certificates/c5_686_s29_k24_null.json
+?? certificates/c5_686_s2_k24_null.json
+?? certificates/c5_686_s30_k4_null.json
+?? certificates/c5_686_s31_k24_null.json
+?? certificates/c5_686_s32_k24_null.json
+?? certificates/c5_686_s33_k24_null.json
+?? certificates/c5_686_s34_k4_null.json
+?? certificates/c5_686_s35_k24_null.json
+?? certificates/c5_686_s36_k24_null.json
+?? certificates/c5_686_s37_k24_null.json
+?? certificates/c5_686_s38_k4_null.json
+?? certificates/c5_686_s39_k24_null.json
+?? certificates/c5_686_s3_k24_null.json
+?? certificates/c5_686_s40_k24_null.json
+?? certificates/c5_686_s41_k24_null.json
+?? certificates/c5_686_s42_k4_null.json
+?? certificates/c5_686_s43_k24_null.json
+?? certificates/c5_686_s44_k24_null.json
+?? certificates/c5_686_s45_k24_null.json
+?? certificates/c5_686_s46_k4_null.json
+?? certificates/c5_686_s47_k24_null.json
+?? certificates/c5_686_s48_k24_null.json
+?? certificates/c5_686_s49_k24_null.json
+?? certificates/c5_686_s50_k4_null.json
+?? certificates/c5_686_s51_k24_null.json
+?? certificates/c5_686_s52_k24_null.json
+?? certificates/c5_686_s53_k24_null.json
+?? certificates/c5_686_s54_k4_null.json
+?? certificates/c5_686_s55_k24_null.json
+?? certificates/c5_686_s56_k24_null.json
+?? certificates/c5_686_s57_k24_null.json
+?? certificates/c5_686_s58_k4_null.json
+?? certificates/c5_686_s59_k24_null.json
+?? certificates/c5_686_s5_k24_null.json
+?? certificates/c5_686_s60_k24_null.json
+?? certificates/c5_686_s61_k24_null.json
+?? certificates/c5_686_s62_k4_null.json
+?? certificates/c5_686_s63_k24_null.json
+?? certificates/c5_686_s64_k24_null.json
+?? certificates/c5_686_s65_k24_null.json
+?? certificates/c5_686_s66_k4_null.json
+?? certificates/c5_686_s67_k24_null.json
+?? certificates/c5_686_s68_k24_null.json
+?? certificates/c5_686_s69_k24_null.json
+?? certificates/c5_686_s6_k24_null.json
+?? certificates/c5_686_s70_k4_null.json
+?? certificates/c5_686_s71_k24_null.json
+?? certificates/c5_686_s72_k24_null.json
+?? certificates/c5_686_s73_k24_null.json
+?? certificates/c5_686_s74_k4_null.json
+?? certificates/c5_686_s75_k24_null.json
+?? certificates/c5_686_s76_k24_null.json
+?? certificates/c5_686_s77_k24_null.json
+?? certificates/c5_686_s78_k4_null.json
+?? certificates/c5_686_s79_k24_null.json
+?? certificates/c5_686_s7_k24_null.json
+?? certificates/c5_686_s80_k24_null.json
+?? certificates/c5_686_s81_k24_null.json
+?? certificates/c5_686_s82_k4_null.json
+?? certificates/c5_686_s83_k24_null.json
+?? certificates/c5_686_s84_k24_null.json
+?? certificates/c5_686_s85_k24_null.json
+?? certificates/c5_686_s86_k4_null.json
+?? certificates/c5_686_s87_k24_null.json
+?? certificates/c5_686_s88_k24_null.json
+?? certificates/c5_686_s89_k24_null.json
+?? certificates/c5_686_s8_k24_null.json
+?? certificates/c5_686_s90_k4_null.json
+?? certificates/c5_686_s91_k24_null.json
+?? certificates/c5_686_s92_k24_null.json
+?? certificates/c5_686_s93_k24_null.json
+?? certificates/c5_686_s94_k4_null.json
+?? certificates/c5_686_s95_k24_null.json
+?? certificates/c5_686_s96_k24_null.json
+?? certificates/c5_686_s97_k24_null.json
+?? certificates/c5_686_s98_k4_null.json
+?? certificates/c5_686_s99_k4_null.json
+?? certificates/c5_686_s9_k24_null.json
+?? certificates/c5_g5_49_prefix.json
+?? certificates/c5_g5_49_proof.json
+?? certificates/c5_g5_49_witness.json
+?? certificates/c5_g5_50_prefix.json
+?? certificates/c5_g5_50_proof.json
+?? certificates/c5_g5_50_witness.json
+?? certificates/c5_g5_51_prefix.json
+?? certificates/c5_g5_51_proof.json
+?? certificates/c5_g5_51_witness.json
+?? certificates/c5_g5_52_prefix.json
+?? certificates/c5_g5_52_proof.json
+?? certificates/c5_g5_52_witness.json
+?? certificates/c5_g5_53_prefix.json
+?? certificates/c5_g5_53_proof.json
+?? certificates/c5_g5_53_witness.json
+?? certificates/c5_g5_54_prefix.json
+?? certificates/c5_g5_54_proof.json
+?? certificates/c5_g5_54_witness.json
+?? certificates/c5_g5_55_prefix.json
+?? certificates/c5_g5_55_proof.json
+?? certificates/c5_g5_55_witness.json
+?? certificates/c5_g5_56_prefix.json
+?? certificates/c5_g5_56_proof.json
+?? certificates/c5_g5_56_witness.json
+?? certificates/c5_g5_57_prefix.json
+?? certificates/c5_g5_57_proof.json
+?? certificates/c5_g5_57_witness.json
+?? certificates/c5_g5_58_prefix.json
+?? certificates/c5_g5_58_proof.json
+?? certificates/c5_g5_58_witness.json
+?? certificates/c5_g5_59_prefix.json
+?? certificates/c5_g5_59_proof.json
+?? certificates/c5_g5_59_witness.json
+?? certificates/c5_g5_60_prefix.json
+?? certificates/c5_g5_60_proof.json
+?? certificates/c5_g5_60_witness.json
+?? certificates/c5_g6_49_prefix.json
+?? certificates/c5_g6_49_proof.json
+?? certificates/c5_g6_49_witness.json
+?? certificates/c5_g6_50_prefix.json
+?? certificates/c5_g6_50_proof.json
+?? certificates/c5_g6_50_witness.json
+?? certificates/c5_g6_51_prefix.json
+?? certificates/c5_g6_51_proof.json
+?? certificates/c5_g6_51_witness.json
+?? certificates/c5_g6_52_prefix.json
+?? certificates/c5_g6_52_proof.json
+?? certificates/c5_g6_52_witness.json
+?? certificates/c5_g6_53_prefix.json
+?? certificates/c5_g6_53_proof.json
+?? certificates/c5_g6_53_witness.json
+?? certificates/c5_g6_54_prefix.json
+?? certificates/c5_g6_54_proof.json
+?? certificates/c5_g6_54_witness.json
+?? certificates/c5_g6_55_prefix.json
+?? certificates/c5_g6_55_proof.json
+?? certificates/c5_g6_55_witness.json
+?? certificates/c5_g6_56_prefix.json
+?? certificates/c5_g6_56_proof.json
+?? certificates/c5_g6_56_witness.json
+?? certificates/c5_g6_57_prefix.json
+?? certificates/c5_g6_57_proof.json
+?? certificates/c5_g6_57_witness.json
+?? certificates/c5_g6_58_prefix.json
+?? certificates/c5_g6_58_proof.json
+?? certificates/c5_g6_58_witness.json
+?? certificates/c5_g6_59_prefix.json
+?? certificates/c5_g6_59_proof.json
+?? certificates/c5_g6_59_witness.json
+?? certificates/c5_g6_60_prefix.json
+?? certificates/c5_g6_60_proof.json
+?? certificates/c5_g6_60_witness.json
+?? docs/CAMPAIGN5_CHECKS.md
+?? docs/CAMPAIGN5_REPORT_AR.md
+?? solvers/s686_pell.py
+?? tests/test_campaign5.py
+?? tests/test_pell_batch.py

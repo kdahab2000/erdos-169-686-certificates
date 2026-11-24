@@ -13,7 +13,8 @@ SECTIONS=('NAME','DATA','OFFSET','COMMENTS','EXAMPLE','PROG','CROSSREFS','KEYWOR
 
 
 def rational_program(k,part):
-    return f'''from fractions import Fraction
+    return f'''(Python)
+from fractions import Fraction
 
 def terms(n=12, k={k}):
     result = []
@@ -38,14 +39,14 @@ def terms(n=12, k={k}):
     return result
 
 print(", ".join(map(str,terms())))
-# ~~~~'''
+# _Khaled Aboeldahab_, Nov 24 2026'''
 
 
 def tail_program():
-    code='from functools import lru_cache\n\n'
+    code='(Python)\nfrom functools import lru_cache\n\n'
     for f in (_step,_tail_possible,build_tail_automaton):
         code+=inspect.getsource(f)+'\n'
-    return code+'print(", ".join(str(len(build_tail_automaton(L))) for L in range(1,7)))\n# ~~~~'
+    return code+'print(", ".join(str(len(build_tail_automaton(L))) for L in range(1,7)))\n# _Khaled Aboeldahab_, Nov 24 2026'
 
 
 def render(fields):
@@ -82,6 +83,17 @@ def certified_tables():
     return tables
 
 
+def bfile_eligible(row_count, endpoint):
+    return row_count >= endpoint+20
+
+
+def write_bfile(path, sequence, endpoint):
+    if bfile_eligible(len(sequence),endpoint):
+        path.write_text(''.join(f'{i} {a}\n' for i,a in enumerate(sequence,1)))
+    elif path.exists():
+        path.unlink()
+
+
 def build():
     out=ROOT/'submissions/oeis'
     out.mkdir(parents=True,exist_ok=True)
@@ -98,11 +110,11 @@ def build():
         counts.append(str(len(scan['tail_compatible'])))
     fields=dict(NAME='Number of positive integers a <= 5^L outside 1 + K_5 that create no 5-term arithmetic progression with a as first term and four terms in the tail {1+x: x >= 5^L, all base-5 digits of x in {0,1,2,3}}.',
                 DATA=', '.join(counts),OFFSET='1,6',
-                COMMENTS='K_5 consists of nonnegative integers whose base-5 digits are in {0,1,2,3}. Exact carry-automaton enumeration, with individual tail checks at L=9. Tail compatibility does not mean that a can be added without head removals. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.',
+                COMMENTS='K_5 consists of nonnegative integers whose base-5 digits are in {0,1,2,3}. Exact carry-automaton enumeration, with individual tail checks at L=9. Tail compatibility does not mean that a can be added without head removals.',
                 EXAMPLE='For L=6 the two values are 3380 and 8340.',PROG=tail_program(),
-                CROSSREFS='Related finite reciprocal maxima: A?????? (g_3 numerators), A?????? (g_3 denominators).',KEYWORD='nonn,more',AUTHOR=author)
+                CROSSREFS='Related finite reciprocal maxima: A402683 (g_3 numerators), A402684 (g_3 denominators).',KEYWORD='nonn,more',AUTHOR=author)
     (out/'batch1_seq1_tail_compat_base5.txt').write_text(render(fields))
-    (out/'b_tail_compat_base5.txt').write_text(''.join(f'{i} {a}\n' for i,a in enumerate(counts,1)))
+    write_bfile(out/'b_tail_compat_base5.txt', counts, len(counts))
     for table in tables:
         k=int(table['k']); rows=table['rows']
         values={part:[r['value'][part] for r in rows] for part in ('num','den')}
@@ -113,18 +125,20 @@ def build():
             else:
                 break
         for part in ('num','den'):
-            label='Numerators' if part=='num' else 'Denominators'
+            label='Numerator' if part=='num' else 'Denominator'
             partner='denominators' if part=='num' else 'numerators'
             prefix=f'batch1_seq{2 if part=="num" else 3}_g3_{"numerators" if part=="num" else "denominators"}' if k==3 else f'batch2_g{k}_{part}'
             bname=f'b_g3_{"numerators" if part=="num" else "denominators"}.txt' if k==3 else f'b_g{k}_{part}.txt'
             sequence=values[part]
             first_large=next((i for i,a in enumerate(sequence,1) if int(a)>1),1)
-            comments=f'g_{k}(n) is the maximum of sum(1/a for a in S) over all {k}-term arithmetic-progression-free subsets S of {{1,...,n}}. Fractions are reduced. The b-file contains all {len(rows)} certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.'
+            comments=f'g_{k}(n) is the maximum of sum(1/a for a in S) over all {k}-term arithmetic-progression-free subsets S of {{1,...,n}}. Fractions are reduced. All {len(rows)} terms are backed by finite optimization proof replays.'
+            if bfile_eligible(len(rows),endpoint):
+                comments+=f' The b-file contains all {len(rows)} certified terms.'
             if k==3:
                 comments+=' The greedy sequence differs from the optimum at n=9 (143/72 versus 39/20) and n=24 (6059/2640 versus 45831/20020).'
-            fields=dict(NAME=f'{label} of g_{k}(n), the maximum reciprocal sum of a {k}-term arithmetic-progression-free subset of {{1,...,n}}.',DATA=', '.join(sequence[:endpoint]),OFFSET=f'1,{first_large}',COMMENTS=comments,EXAMPLE=f'For n=1, g_{k}(1)=1, so a(1)=1.',PROG=rational_program(k,part),CROSSREFS=f'A?????? ({partner} of g_{k}(n)).',KEYWORD='nonn,frac',AUTHOR=author)
+            fields=dict(NAME=f'{label} of g_{k}(n), the maximum reciprocal sum of a {k}-term arithmetic-progression-free subset of {{1,...,n}}.',DATA=', '.join(sequence[:endpoint]),OFFSET=f'1,{first_large}',COMMENTS=comments,EXAMPLE=f'For n=1, g_{k}(1)=1, so a(1)=1.',PROG=rational_program(k,part),CROSSREFS=(f'{"A402684" if part=="num" else "A402683"} ({partner} of g_3(n)); A402682 (base-5 tail-compatible counts).' if k==3 else f'Companion {partner} sequence for g_{k}(n); A402682, A402683, A402684.'),KEYWORD='nonn,frac',AUTHOR=author)
             (out/(prefix+'.txt')).write_text(render(fields))
-            (out/bname).write_text(''.join(f'{i} {a}\n' for i,a in enumerate(sequence,1)))
+            write_bfile(out/bname, sequence, endpoint)
 
 
 if __name__=='__main__':

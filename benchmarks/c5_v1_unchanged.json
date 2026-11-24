@@ -1,0 +1,4 @@
+{
+  "verifiers/standalone_verify.py": true,
+  "verifiers/v169.py": true
+}

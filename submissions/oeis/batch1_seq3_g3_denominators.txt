@@ -1,5 +1,5 @@
 NAME
-Denominators of g_3(n), the maximum reciprocal sum of a 3-term arithmetic-progression-free subset of {1,...,n}.
+Denominator of g_3(n), the maximum reciprocal sum of a 3-term arithmetic-progression-free subset of {1,...,n}.
 
 DATA
 1, 2, 2, 4, 20, 20, 20, 20, 72, 20, 220, 220, 2860, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 2640, 7700, 328900, 59670, 59670, 290290, 355212, 8998990, 143983840, 143983840, 143983840, 143983840, 161981820
@@ -8,12 +8,13 @@ OFFSET
 1,2
 
 COMMENTS
-g_3(n) is the maximum of sum(1/a for a in S) over all 3-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 36 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK. The greedy sequence differs from the optimum at n=9 (143/72 versus 39/20) and n=24 (6059/2640 versus 45831/20020).
+g_3(n) is the maximum of sum(1/a for a in S) over all 3-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. All 36 terms are backed by finite optimization proof replays. The greedy sequence differs from the optimum at n=9 (143/72 versus 39/20) and n=24 (6059/2640 versus 45831/20020).
 
 EXAMPLE
 For n=1, g_3(1)=1, so a(1)=1.
 
 PROG
+(Python)
 from fractions import Fraction
 
 def terms(n=12, k=3):
@@ -39,10 +40,10 @@ def terms(n=12, k=3):
     return result
 
 print(", ".join(map(str,terms())))
-# ~~~~
+# _Khaled Aboeldahab_, Nov 24 2026
 
 CROSSREFS
-A?????? (numerators of g_3(n)).
+A402683 (numerators of g_3(n)); A402682 (base-5 tail-compatible counts).
 
 KEYWORD
 nonn,frac

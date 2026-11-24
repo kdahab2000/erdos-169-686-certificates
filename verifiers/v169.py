@@ -979,12 +979,181 @@ def verify_h0_cyclic_max(cert,base_dir):
     return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
 
 
+def _c5_integer(value: Any, label: str, minimum: Optional[int] = None) -> int:
+    if isinstance(value, bool) or not isinstance(value, str) or not (value.isascii() and value.isdecimal() and (value=='0' or not value.startswith('0'))):
+        raise CertificateError(f"{label} is not a canonical decimal string")
+    number = int(value)
+    if number.bit_length() > 4096:
+        raise CertificateError(f"{label} exceeds 4096 bits")
+    if minimum is not None and number < minimum:
+        raise CertificateError(f"{label} is below {minimum}")
+    return number
+
+
+def _c5_keys(obj: Mapping[str, Any], expected: Iterable[str], label: str) -> None:
+    expected = set(expected)
+    actual = set(obj)
+    if expected != actual:
+        raise CertificateError(
+            f"{label} keys differ: missing={sorted(expected-actual)}, unknown={sorted(actual-expected)}"
+        )
+
+
+def _replay_h0_v2(nodes, selected0, excluded0, maximum, full, cosets, fibres, dominance_cap):
+    index = 0
+    def ap(pair):
+        if not isinstance(pair,list) or len(pair)!=2:
+            raise CertificateError('H0 AP pair')
+        a,d = [_c5_integer(x,'AP',0) for x in pair]
+        if a>=125 or not 1<=d<125:
+            raise CertificateError('H0 AP range')
+        return {(a+j*d)%125 for j in range(5)}
+    def visit(selected,excluded):
+        nonlocal index
+        if index>=len(nodes):
+            raise CertificateError('truncated H0 tree')
+        node = nodes[index]
+        index+=1
+        if not isinstance(node,dict):
+            raise CertificateError('H0 node must be object')
+        undecided = full-selected-excluded
+        op = node.get('op')
+        if op=='branch':
+            _c5_keys(node,('op','j'),'H0 branch')
+            j = _c5_integer(node['j'],'j',0)
+            if j not in undecided:
+                raise CertificateError('H0 branch violates fixed fibre')
+            visit(selected|{j},excluded)
+            visit(selected,excluded|{j})
+        elif op=='force':
+            _c5_keys(node,('op','j','ap'),'H0 force')
+            j = _c5_integer(node['j'],'j',0)
+            edge = ap(node['ap'])
+            if j not in undecided or j not in edge or not edge-{j}<=selected:
+                raise CertificateError('invalid H0 force')
+            visit(selected,excluded|{j})
+        elif op=='conflict':
+            _c5_keys(node,('op','ap'),'H0 conflict')
+            if not ap(node['ap'])<=selected:
+                raise CertificateError('forged H0 conflict')
+        elif op=='prune':
+            bound = node.get('bound')
+            if bound=='dominance':
+                _c5_keys(node,('op','bound'),'H0 dominance')
+                cap = dominance_cap
+                counts = [len(part&selected) for part in fibres]
+                upper = 0 if any(n>cap for n in counts) else len(selected)+sum(
+                    min(len(part&undecided),cap-n) for part,n in zip(fibres,counts))
+            elif bound in ('coset','fibre'):
+                _c5_keys(node,('op','bound'),'H0 bound')
+                parts,cap = (cosets,4) if bound=='coset' else (fibres,16)
+                upper = len(selected)+sum(min(len(part&undecided),cap-len(part&selected)) for part in parts)
+            elif bound=='packing':
+                _c5_keys(node,('op','bound','aps'),'H0 packing')
+                if not isinstance(node['aps'],list) or len(node['aps'])>125:
+                    raise CertificateError('H0 packing cap')
+                occupied = set()
+                for pair in node['aps']:
+                    edge = ap(pair)
+                    active = edge&undecided
+                    if edge&excluded or not active or active&occupied:
+                        raise CertificateError('invalid H0 packing')
+                    occupied |= active
+                upper = len(selected)+len(undecided)-len(node['aps'])
+            else:
+                raise CertificateError('unknown H0 bound')
+            if upper>maximum:
+                raise CertificateError('invalid H0 prune bound')
+        else:
+            raise CertificateError('unknown H0 node')
+    visit(selected0,excluded0)
+    if index!=len(nodes):
+        raise CertificateError('unused H0 nodes')
+
+
+def verify_h0_cyclic_max_v2(cert,base_dir):
+    """Densest-fibre normalization is valid: translate a densest class to H0,
+    then lift y -> ay+c on Z25 to x -> a'x+5c on Z125. These maps
+    permute residue classes, preserving H0 as a densest fibre. Thus each
+    searched completion may be restricted to fibre sizes <= len(F0).
+    """
+    _c5_keys(cert,('schema','modulus','p','max_cardinality','witness','mode','proof'),'H0 max')
+    if cert['schema']!='erd169.cyclic_max.v2' or cert['modulus']!='125' or cert['p']!='5' or cert['mode']!='h0_orbit_bnb':
+        raise CertificateError('wrong H0 parameters')
+    maximum = _c5_integer(cert['max_cardinality'],'maximum',0)
+    if not 64<=maximum<=80 or not isinstance(cert['witness'],list) or len(cert['witness'])!=maximum:
+        raise CertificateError('H0 witness cap')
+    witness = [_c5_integer(x,'witness',0) for x in cert['witness']]
+    if witness!=sorted(set(witness)) or witness[-1]>=125:
+        raise CertificateError('invalid H0 witness')
+    proof = cert['proof']
+    if not isinstance(proof,dict):
+        raise CertificateError('H0 proof must be object')
+    _c5_keys(proof,('z25_ref_sha256','orbits'),'H0 proof')
+    orbits = proof['orbits']
+    if not isinstance(orbits,list) or not (0 if (maximum+5)//5>=17 else 1)<=len(orbits)<=1000:
+        raise CertificateError('H0 orbit cap')
+    total = 0
+    threshold = (maximum+5)//5
+    for orbit in orbits:
+        if not isinstance(orbit,dict):
+            raise CertificateError('H0 orbit must be object')
+        _c5_keys(orbit,('fibre','tree'),'H0 orbit')
+        if not isinstance(orbit['fibre'],list) or not threshold<=len(orbit['fibre'])<=16:
+            raise CertificateError('H0 fibre cap')
+        if not isinstance(orbit['tree'],list) or not orbit['tree']:
+            raise CertificateError('H0 tree array')
+        total += len(orbit['tree'])
+        if total>1000000:
+            raise CertificateError('H0 total node cap')
+    if base_dir is None:
+        raise CertificateError('H0 reference requires directory')
+    ref = resolve_digest(proof['z25_ref_sha256'],base_dir)
+    verify_cyclic_max(ref)
+    if ref['modulus']!='25' or ref['max_cardinality']!='16':
+        raise CertificateError('H0 requires Z25 maximum 16')
+    edges = cyclic_progressions(125)
+    present = set(witness)
+    if any(edge<=present for edge in edges):
+        raise CertificateError('H0 witness has AP')
+    coverage = set()
+    representatives = set()
+    units = [a for a in range(25) if gcd(a,25)==1]
+    parsed = []
+    for orbit in orbits:
+        fibre = [_c5_integer(x,'fibre',0) for x in orbit['fibre']]
+        if fibre!=sorted(set(fibre)) or fibre[-1]>=25:
+            raise CertificateError('H0 fibre range/order')
+        if any(edge<=set(fibre) for edge in cyclic_progressions(25)):
+            raise CertificateError('H0 fibre contains AP')
+        mask = sum(1<<x for x in fibre)
+        if mask in representatives:
+            raise CertificateError('duplicate H0 representative')
+        representatives.add(mask)
+        for a in units:
+            for c in range(25):
+                coverage.add(sum(1<<((a*x+c)%25) for x in fibre))
+        parsed.append((fibre,orbit['tree']))
+    if any(mask not in coverage for mask in dense_z25_fibres(threshold)):
+        raise CertificateError('incomplete H0 affine orbit coverage')
+    full = set(range(125))
+    cosets = [{a+25*j for j in range(5)} for a in range(25)]
+    fibres = [{a+5*j for j in range(25)} for a in range(5)]
+    for fibre,nodes in parsed:
+        selected0 = {5*y for y in fibre}
+        excluded0 = {5*y for y in range(25)}-selected0
+        _replay_h0_v2(nodes,selected0,excluded0,maximum,full,cosets,fibres,len(fibre))
+    return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
+
+
 def verify_certificate(certificate: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
     schema = certificate.get("schema") if isinstance(certificate, dict) else None
     if schema == "erd169.quantized_block.v1":
         return verify_quantized_block(certificate)
     if schema == "erd169.rigidity.v2":
         return verify_rigidity_v2(certificate, base_dir)
+    if schema == "erd169.cyclic_max.v2":
+        return verify_h0_cyclic_max_v2(certificate,base_dir)
     if schema == "erd169.cyclic_max.v1":
         if certificate.get("mode") == "h0_orbit_bnb":
             return verify_h0_cyclic_max(certificate,base_dir)

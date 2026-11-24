@@ -1,0 +1,22 @@
+{
+  "MANIFEST.json": {
+    "seconds": "22.134677375026513",
+    "returncode": 0,
+    "context": "sequential after suite; no concurrent commands from this task"
+  },
+  "MANIFEST_DEEP.json": {
+    "seconds": "30.40120362502057",
+    "returncode": 0,
+    "context": "sequential manifest run; overlapped later unittest start near completion"
+  },
+  "contended_run": {
+    "MANIFEST.json": {
+      "seconds": "22.787630249978974",
+      "returncode": 0
+    },
+    "MANIFEST_DEEP.json": {
+      "seconds": "31.79152562498348",
+      "returncode": 0
+    }
+  }
+}

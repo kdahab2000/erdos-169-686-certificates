@@ -1308,16 +1308,198 @@ def verify_h0_cyclic_max(cert,base_dir):
     return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
 
 
+def _replay_h0_v2(nodes, selected0, excluded0, maximum, full, cosets, fibres, dominance_cap):
+    index = 0
+    def ap(pair):
+        if not isinstance(pair,list) or len(pair)!=2:
+            raise BadCertificate('H0 AP pair')
+        a,d = [integer(x,'AP',0) for x in pair]
+        if a>=125 or not 1<=d<125:
+            raise BadCertificate('H0 AP range')
+        return {(a+j*d)%125 for j in range(5)}
+    def visit(selected,excluded):
+        nonlocal index
+        if index>=len(nodes):
+            raise BadCertificate('truncated H0 tree')
+        node = nodes[index]
+        index+=1
+        if not isinstance(node,dict):
+            raise BadCertificate('H0 node must be object')
+        undecided = full-selected-excluded
+        op = node.get('op')
+        if op=='branch':
+            exact_keys(node,('op','j'),'H0 branch')
+            j = integer(node['j'],'j',0)
+            if j not in undecided:
+                raise BadCertificate('H0 branch violates fixed fibre')
+            visit(selected|{j},excluded)
+            visit(selected,excluded|{j})
+        elif op=='force':
+            exact_keys(node,('op','j','ap'),'H0 force')
+            j = integer(node['j'],'j',0)
+            edge = ap(node['ap'])
+            if j not in undecided or j not in edge or not edge-{j}<=selected:
+                raise BadCertificate('invalid H0 force')
+            visit(selected,excluded|{j})
+        elif op=='conflict':
+            exact_keys(node,('op','ap'),'H0 conflict')
+            if not ap(node['ap'])<=selected:
+                raise BadCertificate('forged H0 conflict')
+        elif op=='prune':
+            bound = node.get('bound')
+            if bound=='dominance':
+                exact_keys(node,('op','bound'),'H0 dominance')
+                cap = dominance_cap
+                counts = [len(part&selected) for part in fibres]
+                upper = 0 if any(n>cap for n in counts) else len(selected)+sum(
+                    min(len(part&undecided),cap-n) for part,n in zip(fibres,counts))
+            elif bound in ('coset','fibre'):
+                exact_keys(node,('op','bound'),'H0 bound')
+                parts,cap = (cosets,4) if bound=='coset' else (fibres,16)
+                upper = len(selected)+sum(min(len(part&undecided),cap-len(part&selected)) for part in parts)
+            elif bound=='packing':
+                exact_keys(node,('op','bound','aps'),'H0 packing')
+                if not isinstance(node['aps'],list) or len(node['aps'])>125:
+                    raise BadCertificate('H0 packing cap')
+                occupied = set()
+                for pair in node['aps']:
+                    edge = ap(pair)
+                    active = edge&undecided
+                    if edge&excluded or not active or active&occupied:
+                        raise BadCertificate('invalid H0 packing')
+                    occupied |= active
+                upper = len(selected)+len(undecided)-len(node['aps'])
+            else:
+                raise BadCertificate('unknown H0 bound')
+            if upper>maximum:
+                raise BadCertificate('invalid H0 prune bound')
+        else:
+            raise BadCertificate('unknown H0 node')
+    visit(selected0,excluded0)
+    if index!=len(nodes):
+        raise BadCertificate('unused H0 nodes')
+
+
+def verify_h0_cyclic_max_v2(cert,base_dir):
+    """Densest-fibre normalization is valid: translate a densest class to H0,
+    then lift y -> ay+c on Z25 to x -> a'x+5c on Z125. These maps
+    permute residue classes, preserving H0 as a densest fibre. Thus each
+    searched completion may be restricted to fibre sizes <= len(F0).
+    """
+    exact_keys(cert,('schema','modulus','p','max_cardinality','witness','mode','proof'),'H0 max')
+    if cert['schema']!='erd169.cyclic_max.v2' or cert['modulus']!='125' or cert['p']!='5' or cert['mode']!='h0_orbit_bnb':
+        raise BadCertificate('wrong H0 parameters')
+    maximum = integer(cert['max_cardinality'],'maximum',0)
+    if not 64<=maximum<=80 or not isinstance(cert['witness'],list) or len(cert['witness'])!=maximum:
+        raise BadCertificate('H0 witness cap')
+    witness = [integer(x,'witness',0) for x in cert['witness']]
+    if witness!=sorted(set(witness)) or witness[-1]>=125:
+        raise BadCertificate('invalid H0 witness')
+    proof = cert['proof']
+    if not isinstance(proof,dict):
+        raise BadCertificate('H0 proof must be object')
+    exact_keys(proof,('z25_ref_sha256','orbits'),'H0 proof')
+    orbits = proof['orbits']
+    if not isinstance(orbits,list) or not (0 if (maximum+5)//5>=17 else 1)<=len(orbits)<=1000:
+        raise BadCertificate('H0 orbit cap')
+    total = 0
+    threshold = (maximum+5)//5
+    for orbit in orbits:
+        if not isinstance(orbit,dict):
+            raise BadCertificate('H0 orbit must be object')
+        exact_keys(orbit,('fibre','tree'),'H0 orbit')
+        if not isinstance(orbit['fibre'],list) or not threshold<=len(orbit['fibre'])<=16:
+            raise BadCertificate('H0 fibre cap')
+        if not isinstance(orbit['tree'],list) or not orbit['tree']:
+            raise BadCertificate('H0 tree array')
+        total += len(orbit['tree'])
+        if total>1000000:
+            raise BadCertificate('H0 total node cap')
+    if base_dir is None:
+        raise BadCertificate('H0 reference requires directory')
+    ref = resolve_digest(proof['z25_ref_sha256'],base_dir)
+    verify_cyclic_max(ref)
+    if ref['modulus']!='25' or ref['max_cardinality']!='16':
+        raise BadCertificate('H0 requires Z25 maximum 16')
+    edges = cyclic_progressions(125)
+    present = set(witness)
+    if any(edge<=present for edge in edges):
+        raise BadCertificate('H0 witness has AP')
+    coverage = set()
+    representatives = set()
+    units = [a for a in range(25) if gcd(a,25)==1]
+    parsed = []
+    for orbit in orbits:
+        fibre = [integer(x,'fibre',0) for x in orbit['fibre']]
+        if fibre!=sorted(set(fibre)) or fibre[-1]>=25:
+            raise BadCertificate('H0 fibre range/order')
+        if any(edge<=set(fibre) for edge in cyclic_progressions(25)):
+            raise BadCertificate('H0 fibre contains AP')
+        mask = sum(1<<x for x in fibre)
+        if mask in representatives:
+            raise BadCertificate('duplicate H0 representative')
+        representatives.add(mask)
+        for a in units:
+            for c in range(25):
+                coverage.add(sum(1<<((a*x+c)%25) for x in fibre))
+        parsed.append((fibre,orbit['tree']))
+    if any(mask not in coverage for mask in dense_z25_fibres(threshold)):
+        raise BadCertificate('incomplete H0 affine orbit coverage')
+    full = set(range(125))
+    cosets = [{a+25*j for j in range(5)} for a in range(25)]
+    fibres = [{a+5*j for j in range(25)} for a in range(5)]
+    for fibre,nodes in parsed:
+        selected0 = {5*y for y in fibre}
+        excluded0 = {5*y for y in range(25)}-selected0
+        _replay_h0_v2(nodes,selected0,excluded0,maximum,full,cosets,fibres,len(fibre))
+    return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
+
+
+def verify_pell_batch(cert):
+    exact_keys(cert,('schema','k','N_min','N_max','domain','rows'),'Pell batch')
+    if cert['schema']!='erd686.pell_batch.v1' or cert['k']!='2' or cert['domain']!='n>=1':
+        raise BadCertificate('wrong Pell parameters')
+    lo = integer(cert['N_min'],'N_min',2)
+    hi = integer(cert['N_max'],'N_max',2)
+    if not lo<=hi<=10000 or not isinstance(cert['rows'],list):
+        raise BadCertificate('Pell range/rows')
+    expected = [n for n in range(lo,hi+1) if isqrt(n)**2!=n]
+    if len(cert['rows'])!=len(expected):
+        raise BadCertificate('Pell coverage')
+    for row,expected_n in zip(cert['rows'],expected):
+        if not isinstance(row,dict):
+            raise BadCertificate('Pell row must be object')
+        exact_keys(row,('N','u','v','n','m'),'Pell row')
+        N,u,v,n,m = [integer(row[key],key,1) for key in ('N','u','v','n','m')]
+        if max(N,u,v,n,m).bit_length()>256:
+            raise BadCertificate('Pell 256-bit cap')
+        if N!=expected_n:
+            raise BadCertificate('Pell coverage')
+        if u<2 or u*u-N*v*v!=1:
+            raise BadCertificate('Pell norm')
+        U,V = 2*u*u-1,2*u*v
+        if 2*n!=U+V-3 or 2*m!=U+N*V-3 or m<n+2:
+            raise BadCertificate('Pell coordinates/domain')
+        if (m+1)*(m+2)!=N*(n+1)*(n+2):
+            raise BadCertificate('Pell product equality')
+    return {'valid':True,'k':2,'N_min':lo,'N_max':hi,'count':len(expected),
+            'novelty_tags':['NONSQUARE_PELL_KNOWN']}
+
+
 def verify_certificate(cert: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
     """Verify one standalone certificate and return a structured result."""
 
     if not isinstance(cert, dict):
         raise BadCertificate("certificate is not an object")
     schema = cert.get("schema")
+    if schema == "erd686.pell_batch.v1":
+        return verify_pell_batch(cert)
     if schema == "erd169.quantized_block.v1":
         return verify_quantized_block(cert)
     if schema == "erd169.rigidity.v2":
         return verify_rigidity_v2(cert, base_dir)
+    if schema == "erd169.cyclic_max.v2":
+        return verify_h0_cyclic_max_v2(cert,base_dir)
     if schema == "erd169.cyclic_max.v1":
         if cert.get("mode") == "h0_orbit_bnb":
             return verify_h0_cyclic_max(cert,base_dir)

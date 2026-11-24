@@ -1,5 +1,5 @@
 NAME
-Denominators of g_6(n), the maximum reciprocal sum of a 6-term arithmetic-progression-free subset of {1,...,n}.
+Denominator of g_6(n), the maximum reciprocal sum of a 6-term arithmetic-progression-free subset of {1,...,n}.
 
 DATA
 1, 2, 6, 12, 60, 60, 420, 840, 2520, 2520, 2520, 2520, 32760, 32760, 32760, 32760, 556920, 61880, 1175720, 235144, 235144, 2586584, 59491432, 89237148, 2230928700, 2230928700, 2230928700, 2230928700, 2978375400, 2978375400, 11316892860
@@ -8,12 +8,13 @@ OFFSET
 1,2
 
 COMMENTS
-g_6(n) is the maximum of sum(1/a for a in S) over all 6-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 48 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
+g_6(n) is the maximum of sum(1/a for a in S) over all 6-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. All 60 terms are backed by finite optimization proof replays. The b-file contains all 60 certified terms.
 
 EXAMPLE
 For n=1, g_6(1)=1, so a(1)=1.
 
 PROG
+(Python)
 from fractions import Fraction
 
 def terms(n=12, k=6):
@@ -39,10 +40,10 @@ def terms(n=12, k=6):
     return result
 
 print(", ".join(map(str,terms())))
-# ~~~~
+# _Khaled Aboeldahab_, Nov 24 2026
 
 CROSSREFS
-A?????? (numerators of g_6(n)).
+Companion numerators sequence for g_6(n); A402682, A402683, A402684.
 
 KEYWORD
 nonn,frac

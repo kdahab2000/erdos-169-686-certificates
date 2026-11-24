@@ -1,5 +1,5 @@
 NAME
-Numerators of g_4(n), the maximum reciprocal sum of a 4-term arithmetic-progression-free subset of {1,...,n}.
+Numerator of g_4(n), the maximum reciprocal sum of a 4-term arithmetic-progression-free subset of {1,...,n}.
 
 DATA
 1, 3, 11, 11, 61, 11, 11, 93, 877, 913, 913, 913, 913, 27919, 937, 1919, 33343, 33343, 645757, 645757, 26757, 26757, 264382463, 997721, 772248819, 17857741, 21121133713, 21381891613, 21381891613, 21625265653, 267379187863, 10981703077, 122026185527
@@ -8,12 +8,13 @@ OFFSET
 1,2
 
 COMMENTS
-g_4(n) is the maximum of sum(1/a for a in S) over all 4-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 36 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
+g_4(n) is the maximum of sum(1/a for a in S) over all 4-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. All 36 terms are backed by finite optimization proof replays.
 
 EXAMPLE
 For n=1, g_4(1)=1, so a(1)=1.
 
 PROG
+(Python)
 from fractions import Fraction
 
 def terms(n=12, k=4):
@@ -39,10 +40,10 @@ def terms(n=12, k=4):
     return result
 
 print(", ".join(map(str,terms())))
-# ~~~~
+# _Khaled Aboeldahab_, Nov 24 2026
 
 CROSSREFS
-A?????? (denominators of g_4(n)).
+Companion denominators sequence for g_4(n); A402682, A402683, A402684.
 
 KEYWORD
 nonn,frac

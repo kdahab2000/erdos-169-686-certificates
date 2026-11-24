@@ -1,0 +1,11 @@
+✔ Python sources compile (61.939875ms)
+✔ stdlib unittest suite passes (63196.992167ms)
+✔ certificate manifest verifies standalone (22093.235084ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 85402.864334

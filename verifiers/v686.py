@@ -281,9 +281,62 @@ def verify_sieve_null(cert):
     raise CertificateError(f'sieve hit k={k} n={n} m={m}; emit erd686.rep.v1')
 
 
+def _c5_integer(value: Any, label: str, minimum: Optional[int] = None) -> int:
+    if isinstance(value, bool) or not isinstance(value, str) or not (value.isascii() and value.isdecimal() and (value=='0' or not value.startswith('0'))):
+        raise CertificateError(f"{label} is not a canonical decimal string")
+    number = int(value)
+    if number.bit_length() > 4096:
+        raise CertificateError(f"{label} exceeds 4096 bits")
+    if minimum is not None and number < minimum:
+        raise CertificateError(f"{label} is below {minimum}")
+    return number
+
+
+def _c5_keys(obj: Mapping[str, Any], expected: Iterable[str], label: str) -> None:
+    expected = set(expected)
+    actual = set(obj)
+    if expected != actual:
+        raise CertificateError(
+            f"{label} keys differ: missing={sorted(expected-actual)}, unknown={sorted(actual-expected)}"
+        )
+
+
+def verify_pell_batch(cert):
+    _c5_keys(cert,('schema','k','N_min','N_max','domain','rows'),'Pell batch')
+    if cert['schema']!='erd686.pell_batch.v1' or cert['k']!='2' or cert['domain']!='n>=1':
+        raise CertificateError('wrong Pell parameters')
+    lo = _c5_integer(cert['N_min'],'N_min',2)
+    hi = _c5_integer(cert['N_max'],'N_max',2)
+    if not lo<=hi<=10000 or not isinstance(cert['rows'],list):
+        raise CertificateError('Pell range/rows')
+    expected = [n for n in range(lo,hi+1) if isqrt(n)**2!=n]
+    if len(cert['rows'])!=len(expected):
+        raise CertificateError('Pell coverage')
+    for row,expected_n in zip(cert['rows'],expected):
+        if not isinstance(row,dict):
+            raise CertificateError('Pell row must be object')
+        _c5_keys(row,('N','u','v','n','m'),'Pell row')
+        N,u,v,n,m = [_c5_integer(row[key],key,1) for key in ('N','u','v','n','m')]
+        if max(N,u,v,n,m).bit_length()>256:
+            raise CertificateError('Pell 256-bit cap')
+        if N!=expected_n:
+            raise CertificateError('Pell coverage')
+        if u<2 or u*u-N*v*v!=1:
+            raise CertificateError('Pell norm')
+        U,V = 2*u*u-1,2*u*v
+        if 2*n!=U+V-3 or 2*m!=U+N*V-3 or m<n+2:
+            raise CertificateError('Pell coordinates/domain')
+        if (m+1)*(m+2)!=N*(n+1)*(n+2):
+            raise CertificateError('Pell product equality')
+    return {'valid':True,'k':2,'N_min':lo,'N_max':hi,'count':len(expected),
+            'novelty_tags':['NONSQUARE_PELL_KNOWN']}
+
+
 def verify_certificate(certificate: Mapping[str, Any]) -> Dict[str, Any]:
     schema = certificate.get("schema") if isinstance(certificate, dict) else None
     try:
+        if schema == "erd686.pell_batch.v1":
+            return verify_pell_batch(certificate)
         if schema == "erd686.sieve_null.v1":
             return verify_sieve_null(certificate)
         if schema == REP_SCHEMA:

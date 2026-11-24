@@ -29,3 +29,15 @@ This file records failure modes that must be checked before any #169 or #686 cla
 24. **Zero-margin rigidity is not uniqueness.** The L=9 dual establishes maximum gain zero only with the unchanged-tail hypotheses. Greedy window-dual deficits do not establish infeasibility.
 25. **A verifier implementation is not a completed theorem.** H0 proof parsing and orbit-coverage checks do not close Z/125 without a complete accepted certificate. Search frontiers remain claim-free.
 26. **A deep cutoff does not make the whole tail negligible.** For the pure base-five construction, the mass above 5^L is at least 3*(4/5)^L: the shell of length ell has 3*4^(ell-1) terms, each denominator at most 5^ell. At L=12 this exceeds 1/5, rather than falling below 10^-5. The small loss in the puncture probe applies to one specified cylinder, not the entire tail.
+
+## Campaign 5 integrity and scope
+
+- Densest-fibre normalization permits dominance only in cyclic v2; v1 is unchanged.
+- A force node must name an undecided AP point with all four others selected.
+- Active packing sets must be disjoint and no AP may touch excluded points.
+- Local orbit checkpoints are not certificates. A failed measurement leaves Z125 at 64…80.
+- Pell instances cover [2,1000]; a classical argument establishes the general theorem.
+- Square divisor nulls cover the infinite domain only for the stated k∈{2,4}.
+- Positive-rank cubic curves give no infinite integral nonexistence claim.
+- Existing higher-k sweeps are reused benchmarks, not newly rerun or infinite nulls.
+- OEIS b-files need at least 20 extra terms; allocations are user supplied.

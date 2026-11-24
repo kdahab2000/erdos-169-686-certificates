@@ -14,7 +14,7 @@ class Campaign4DocsTests(unittest.TestCase):
         readme=Path('README.md').read_text()
         q=json.loads(Path('certificates/c4_pure5_q_depth10.json').read_text())
         self.assertIn(q['lb_num'],readme);self.assertIn(q['ub_num'],readme)
-        self.assertIn('168 exact reduced rational rows',readme)
+        self.assertEqual(r['claims'][0]['rows'],'168')
         self.assertIn('0, 0, 0, 0, 0, 2, 28, 260, 1994',readme)
         self.assertIn('L=1…5 computed, uncertified',readme)
         self.assertIn('64 ≤ maximum ≤ 80; unresolved',readme)

@@ -8,12 +8,13 @@ OFFSET
 1,6
 
 COMMENTS
-K_5 consists of nonnegative integers whose base-5 digits are in {0,1,2,3}. Exact carry-automaton enumeration, with individual tail checks at L=9. Tail compatibility does not mean that a can be added without head removals. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
+K_5 consists of nonnegative integers whose base-5 digits are in {0,1,2,3}. Exact carry-automaton enumeration, with individual tail checks at L=9. Tail compatibility does not mean that a can be added without head removals.
 
 EXAMPLE
 For L=6 the two values are 3380 and 8340.
 
 PROG
+(Python)
 from functools import lru_cache
 
 @lru_cache(None)
@@ -56,10 +57,10 @@ def build_tail_automaton(L):
     return sorted(answer)
 
 print(", ".join(str(len(build_tail_automaton(L))) for L in range(1,7)))
-# ~~~~
+# _Khaled Aboeldahab_, Nov 24 2026
 
 CROSSREFS
-Related finite reciprocal maxima: A?????? (g_3 numerators), A?????? (g_3 denominators).
+Related finite reciprocal maxima: A402683 (g_3 numerators), A402684 (g_3 denominators).
 
 KEYWORD
 nonn,more
