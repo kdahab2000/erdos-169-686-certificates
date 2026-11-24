@@ -1,0 +1,689 @@
+{
+  "scope": "ERD-071 uncommitted local changes",
+  "files": [
+    {
+      "status": "M",
+      "path": "README.md"
+    },
+    {
+      "status": "M",
+      "path": "benchmarks/oeis_tables.json"
+    },
+    {
+      "status": "M",
+      "path": "certificates/MANIFEST.json"
+    },
+    {
+      "status": "M",
+      "path": "docs/TRAPS.md"
+    },
+    {
+      "status": "M",
+      "path": "solvers/f5_decisive.py"
+    },
+    {
+      "status": "M",
+      "path": "solvers/s686_search.py"
+    },
+    {
+      "status": "M",
+      "path": "submissions/build_oeis.py"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g3_denominators.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g3_numerators.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g4_den.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g4_num.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g5_den.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g5_num.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g6_den.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/b_g6_num.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch1_seq2_g3_numerators.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch1_seq3_g3_denominators.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch2_g4_den.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch2_g4_num.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch2_g5_den.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch2_g5_num.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch2_g6_den.txt"
+    },
+    {
+      "status": "M",
+      "path": "submissions/oeis/batch2_g6_num.txt"
+    },
+    {
+      "status": "M",
+      "path": "verifiers/standalone_verify.py"
+    },
+    {
+      "status": "M",
+      "path": "verifiers/v169.py"
+    },
+    {
+      "status": "M",
+      "path": "verifiers/v686.py"
+    },
+    {
+      "status": "??",
+      "path": "CITATION.cff"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_MANIFEST.json.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_MANIFEST_DEEP.json.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_changed_files.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_diff_check.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_docs_checks.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_dual.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_dual_L9.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_dual_quantized.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_final_replay.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_h0_orbits.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_h0_residual.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_hash_check.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_hashes.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_integration_tests.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_legacy_bytes.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_manifest_build.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_node_checks.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_oracles.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_parity_checks.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_prefix.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_prefix_resume.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_puncture.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_python_checks.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_reconcile.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_searches.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_sieves.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_targeted_tests.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_timings.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_walker.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_wave0_tests.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_window_probe.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_z125.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_z25.json"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/c4_z25.log"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/campaign4.py"
+    },
+    {
+      "status": "??",
+      "path": "benchmarks/campaign4_results.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/MANIFEST_DEEP.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_31_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_31_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_31_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_32_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_32_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_32_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_33_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_33_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_33_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_34_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_34_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_34_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_35_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_35_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_35_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_36_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_36_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g3_36_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_31_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_31_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_31_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_32_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_32_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_32_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_33_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_33_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_33_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_34_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_34_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_34_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_35_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_35_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_35_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_36_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_36_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g4_36_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_41_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_41_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_41_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_42_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_42_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_42_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_43_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_43_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_43_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_44_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_44_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_44_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_45_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_45_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_45_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_46_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_46_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_46_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_47_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_47_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_47_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_48_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_48_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g5_48_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_41_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_41_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_41_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_42_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_42_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_42_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_43_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_43_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_43_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_44_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_44_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_44_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_45_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_45_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_45_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_46_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_46_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_46_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_47_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_47_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_47_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_48_prefix.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_48_proof.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_g6_48_witness.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_null_s2_k101_200_50k.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_null_s2_k3_5m.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_null_s5_k101_200_50k.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_null_s5_k3_5m.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_pure5_q_depth10.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_pure5_q_depth6.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_rigidity_L9.json"
+    },
+    {
+      "status": "??",
+      "path": "certificates/c4_z25_max.json"
+    },
+    {
+      "status": "??",
+      "path": "docs/CAMPAIGN4_CHECKS.md"
+    },
+    {
+      "status": "??",
+      "path": "docs/CAMPAIGN4_REPORT_AR.md"
+    },
+    {
+      "status": "??",
+      "path": "solvers/puncture_search.py"
+    },
+    {
+      "status": "??",
+      "path": "solvers/quantized_block.py"
+    },
+    {
+      "status": "??",
+      "path": "solvers/walker_search.py"
+    },
+    {
+      "status": "??",
+      "path": "solvers/z125_solver.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_campaign4_docs.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_campaign4_oeis.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_campaign4_searches.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_carry_automaton.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_cyclic_max.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_digest_index.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_quantized_block.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_rigidity_v2.py"
+    },
+    {
+      "status": "??",
+      "path": "tests/test_sieve_null.py"
+    }
+  ]
+}

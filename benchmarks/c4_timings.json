@@ -1,0 +1,14 @@
+{
+  "baseline_seconds": "9.89226370898541",
+  "indexed_legacy_seconds": "3.80703025002731",
+  "MANIFEST.json": {
+    "seconds": "8.10357949999161",
+    "returncode": "0",
+    "summary": "verified=561 failures=0"
+  },
+  "MANIFEST_DEEP.json": {
+    "seconds": "27.689658666029572",
+    "returncode": "0",
+    "summary": "verified=2 failures=0"
+  }
+}

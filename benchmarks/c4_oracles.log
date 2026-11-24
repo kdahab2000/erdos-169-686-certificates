@@ -1,0 +1,3 @@
+cubic-v1 parity s=2 n=1..500000 PASS seconds=0.27144300000509247
+cubic-v1 parity s=5 n=1..500000 PASS seconds=0.2882006249856204
+quantized depth10 replay PASS seconds=0.47255008295178413

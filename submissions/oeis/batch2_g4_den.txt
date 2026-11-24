@@ -2,13 +2,13 @@ NAME
 Denominators of g_4(n), the maximum reciprocal sum of a 4-term arithmetic-progression-free subset of {1,...,n}.
 
 DATA
-1, 2, 6, 6, 30, 5, 5, 40, 360, 360, 360, 360, 360, 10920, 360, 720, 12240, 12240, 232560, 232560, 9520, 9520, 93933840, 351120, 270415600, 6224400, 7301221200, 7301221200, 7301221200, 7301221200
+1, 2, 6, 6, 30, 5, 5, 40, 360, 360, 360, 360, 360, 10920, 360, 720, 12240, 12240, 232560, 232560, 9520, 9520, 93933840, 351120, 270415600, 6224400, 7301221200, 7301221200, 7301221200, 7301221200, 89691647760, 3682355040, 40505905440
 
 OFFSET
 1,2
 
 COMMENTS
-g_4(n) is the maximum of sum(1/a for a in S) over all 4-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 30 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
+g_4(n) is the maximum of sum(1/a for a in S) over all 4-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 36 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
 
 EXAMPLE
 For n=1, g_4(1)=1, so a(1)=1.

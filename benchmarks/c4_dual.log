@@ -1,0 +1,1 @@
+Initial unquantized L9 producer found a feasible dual. Standalone replay rejected it: rigidity rational sum exceeds cap. No certificate was emitted. Retried with quantized=True; see c4_dual_quantized.log.

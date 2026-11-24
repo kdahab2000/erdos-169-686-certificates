@@ -1,0 +1,4 @@
+cubic_crt_icbrt 2 {'valid': True, 'survivors': 'not recorded'} seconds 1.2665801669936627
+cubic_crt_icbrt 5 {'valid': True, 'survivors': 'not recorded'} seconds 1.334885124990251
+prime_power_exclusion 2 {'valid': True, 'survivors': '671'} seconds 13.89443724998273
+prime_power_exclusion 5 {'valid': True, 'survivors': '882'} seconds 13.831308249966241

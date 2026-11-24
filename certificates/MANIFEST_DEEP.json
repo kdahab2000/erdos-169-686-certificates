@@ -1,0 +1,14 @@
+{
+  "schema": "erdos.manifest.v1",
+  "campaign": "ERD-071 deep replay",
+  "certificates": [
+    {
+      "path": "c4_null_s2_k101_200_50k.json",
+      "sha256": "156eba2ba9843a4fde5011580a786b277e5ea86e7f7d676c3c0b2d95609d9993"
+    },
+    {
+      "path": "c4_null_s5_k101_200_50k.json",
+      "sha256": "4f36f3b8e313b8e7b37de173b28a023cdaaf95319a4a0e90f8828e79b0a20e35"
+    }
+  ]
+}

@@ -158,9 +158,134 @@ def validate_null(certificate):
     return {key: value for key, value in details.items() if key != "valid"}
 
 
+def iroot(value, k):
+    if value < 0 or k < 1:
+        raise CertificateError('root domain')
+    if value < 2 or k == 1:
+        return value
+    x = 1 << ((value.bit_length()+k-1)//k)
+    while True:
+        y = ((k-1)*x+value//(x**(k-1)))//k
+        if y >= x:
+            return x
+        x = y
+
+
+def icbrt(value):
+    return iroot(value,3)
+
+
+def cubic_sieve_hits(s, lo, hi):
+    """Hard-coded CRT necessary conditions, followed by exact inversion."""
+    moduli = (17017,12673,47027)
+    allowed = []
+    for modulus in moduli:
+        image = {(x*x*x-x)%modulus for x in range(modulus)}
+        allowed.append(bytearray(s*s*(y*y*y-y)%modulus in image for y in range(modulus)))
+    for n in range(lo,hi+1):
+        y = n+2
+        if not all(table[y%modulus] for modulus,table in zip(moduli,allowed)):
+            continue
+        target = s*s*(y*y*y-y)
+        x = icbrt(target)+1
+        if x*x*x-x == target and x-2 >= n+3:
+            yield 3,n,x-2
+
+
+def prime_power_sieve_hits(s, k_lo, k_hi, lo, hi, survivor_cap=200000):
+    from collections import deque
+    limit = hi+k_hi
+    spf = list(range(limit+1))
+    for p in range(2,isqrt(limit)+1):
+        if spf[p] == p:
+            for x in range(p*p,limit+1,p):
+                if spf[x] == x:
+                    spf[x] = p
+    factors = [[] for _ in range(limit+1)]
+    for t in range(2,limit+1):
+        x = t
+        while x>1:
+            p = spf[x]
+            q = 1
+            while x%p==0:
+                x//=p
+                q*=p
+            factors[t].append((p,q))
+    survivors = 0
+    for k in range(k_lo,k_hi+1):
+        queue = deque()
+        def add(t):
+            score = max((t+q for p,q in factors[t] if p>k and s%p),default=0)
+            while queue and queue[-1][1]<=score:
+                queue.pop()
+            queue.append((t,score))
+        for t in range(lo+1,lo+k+1):
+            add(t)
+        product = 1
+        for j in range(1,k+1):
+            product *= lo+j
+        for n in range(lo,hi+1):
+            while queue and queue[0][0]<=n:
+                queue.popleft()
+            bound = queue[0][1]-k+1
+            if bound<=0 or bound**k < s*s*(n+k)**k:
+                survivors += 1
+                if survivors>survivor_cap:
+                    raise CertificateError('prime power survivor cap')
+                target = s*s*product
+                r = iroot(target,k)
+                left,right = max(n+k,r-k+1),r-1
+                while left<=right:
+                    m = (left+right)//2
+                    value = 1
+                    for j in range(1,k+1):
+                        value *= m+j
+                    if value == target:
+                        yield k,n,m
+                        break
+                    if value<target:
+                        left = m+1
+                    else:
+                        right = m-1
+            if n<hi:
+                product = product*(n+k+1)//(n+1)
+                add(n+k+1)
+    return survivors
+
+
+def verify_sieve_null(cert):
+    require_exact_keys(cert,('schema','s','k_lo','k_hi','n_lo','n_hi','method','domain'),'sieve null')
+    if cert['schema']!='erd686.sieve_null.v1' or cert['domain']!='n>=1':
+        raise CertificateError('sieve schema/domain')
+    s = canonical_integer(cert['s'],'s',2)
+    kl = canonical_integer(cert['k_lo'],'k_lo',3)
+    kh = canonical_integer(cert['k_hi'],'k_hi',3)
+    lo = canonical_integer(cert['n_lo'],'n_lo',1)
+    hi = canonical_integer(cert['n_hi'],'n_hi',1)
+    if s>10000 or kl>kh or lo>hi:
+        raise CertificateError('sieve parameter cap/order')
+    if cert['method']=='cubic_crt_icbrt':
+        if kl!=3 or kh!=3 or hi>5000000:
+            raise CertificateError('cubic cap')
+        hits = cubic_sieve_hits(s,lo,hi)
+    elif cert['method']=='prime_power_exclusion':
+        if kl<5 or kh>200 or hi>100000 or (kh-kl+1)*(hi-lo+1)>10000000:
+            raise CertificateError('prime power cap')
+        hits = prime_power_sieve_hits(s,kl,kh,lo,hi)
+    else:
+        raise CertificateError('unknown sieve method')
+    try:
+        k,n,m = next(hits)
+    except StopIteration as done:
+        return {'valid':True,'survivors':str(done.value) if done.value is not None else 'not recorded'}
+    raise CertificateError(f'sieve hit k={k} n={n} m={m}; emit erd686.rep.v1')
+
+
 def verify_certificate(certificate: Mapping[str, Any]) -> Dict[str, Any]:
     schema = certificate.get("schema") if isinstance(certificate, dict) else None
     try:
+        if schema == "erd686.sieve_null.v1":
+            return verify_sieve_null(certificate)
         if schema == REP_SCHEMA:
             return verify_representation(certificate)
         if schema == NULL_SCHEMA:

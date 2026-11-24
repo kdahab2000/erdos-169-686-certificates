@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "Cite the locally reviewed certificates and their explicit domains."
+title: "Erdős Breakthrough Lab: Exact Certificates for Problems 169 and 686"
+type: software
+authors:
+  - family-names: Aboeldahab
+    given-names: Khaled
+repository-code: "https://github.com/kdahab2000/erdos-169-686-certificates"
+version: "Campaign 4 local research artifact"

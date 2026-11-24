@@ -52,10 +52,40 @@ def render(fields):
     return '\n\n'.join(key+'\n'+fields[key] for key in SECTIONS)+'\n'
 
 
+def certified_tables():
+    """Build contiguous rows exclusively from manifest-backed replayed prefixes."""
+    from verifiers.standalone_verify import load_strict,verify_prefix,digest_run,resolve_digest
+    entries=[]
+    for name in ('MANIFEST.json','MANIFEST_DEEP.json'):
+        path=ROOT/'certificates'/name
+        if path.exists(): entries.extend(load_strict(path)['certificates'])
+    rows={k:{} for k in range(3,7)}
+    with digest_run(ROOT/'certificates'):
+        for entry in entries:
+            certificate_path=(ROOT/'certificates'/entry['path']).resolve()
+            certificate_path.relative_to((ROOT/'certificates').resolve())
+            cert=load_strict(certificate_path)
+            if cert.get('schema')!='erd169.prefix_opt.v1':continue
+            # Bind the operational manifest entry as well as its reference digests.
+            from verifiers.standalone_verify import verify_entry
+            if not verify_entry(entry,ROOT/'certificates')['valid']:
+                raise ValueError('invalid OEIS prefix certificate')
+            witness=resolve_digest(cert['witness_sha256'],ROOT/'certificates')
+            k=int(cert['k']); n=int(cert['N'])
+            row={'N':str(n),'value':witness['score'],'members':witness['members']}
+            if n in rows[k] and rows[k][n]!=row:raise ValueError('conflicting certified row')
+            rows[k][n]=row
+    tables=[]
+    for k,data in rows.items():
+        if sorted(data)!=list(range(1,max(data)+1)):raise ValueError('noncontiguous certified table')
+        tables.append({'k':str(k),'rows':[data[n] for n in sorted(data)]})
+    return tables
+
+
 def build():
     out=ROOT/'submissions/oeis'
     out.mkdir(parents=True,exist_ok=True)
-    tables=json.loads((ROOT/'benchmarks/oeis_tables.json').read_text())['tables']
+    tables=certified_tables()
     author='_Khaled Aboeldahab_, Nov 24 2026'
     counts=[]
     for L in range(1,10):

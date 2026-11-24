@@ -1,0 +1,3 @@
+MANIFEST.json {'seconds': '8.10357949999161', 'returncode': '0', 'summary': 'verified=561 failures=0'}
+MANIFEST_DEEP.json {'seconds': '27.689658666029572', 'returncode': '0', 'summary': 'verified=2 failures=0'}
+measure seconds 35.79479100002209

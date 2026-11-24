@@ -122,3 +122,13 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def sweep_cubic(s, n_lo=1, n_hi=5000000):
+    from verifiers.v686 import cubic_sieve_hits
+    return list(cubic_sieve_hits(s,n_lo,n_hi))
+
+
+def sweep_prime_power(s,k_lo=101,k_hi=200,n_lo=1,n_hi=50000):
+    from verifiers.v686 import prime_power_sieve_hits
+    return list(prime_power_sieve_hits(s,k_lo,k_hi,n_lo,n_hi))

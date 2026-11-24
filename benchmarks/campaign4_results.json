@@ -1,0 +1,147 @@
+{
+  "scope": "ERD-071 local bounded Campaign 4; no external publication or infinite-problem resolution",
+  "manifest_entries": {
+    "default": "561",
+    "deep": "2"
+  },
+  "claims": [
+    {
+      "claim": "prefix optima",
+      "claim_level": "optimal",
+      "rows": "168",
+      "endpoints": {
+        "3": "36",
+        "4": "36",
+        "5": "48",
+        "6": "48"
+      },
+      "certificate_patterns": [
+        "c2_g*_prefix.json",
+        "c4_g*_prefix.json"
+      ]
+    },
+    {
+      "claim": "pure S5 enclosure",
+      "claim_level": "feasible",
+      "certificate": "c4_pure5_q_depth10.json",
+      "lb_num": "7872304791376599245143565191968392186045201865878690256808179",
+      "ub_num": "7872304977805305362976739131243867446117686946054980955786331",
+      "Q": "1000000000000000000000000000000000000000000000000000000000000",
+      "width_num": "186428706117833173939275475260072485080176290698978152"
+    },
+    {
+      "claim": "unchanged-tail rigidity",
+      "claim_level": "optimal",
+      "levels": [
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "maximum_delta": "0",
+      "uniqueness_at_L9": false,
+      "certificates": [
+        "c3_rigidity_L6.json",
+        "c3_rigidity_L7.json",
+        "c3_rigidity_L8.json",
+        "c4_rigidity_L9.json"
+      ]
+    },
+    {
+      "claim": "candidate sequence",
+      "values": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "2",
+        "28",
+        "260",
+        "1994"
+      ],
+      "certified_levels": [
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "computed_uncertified_levels": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    {
+      "claim": "Z25 cyclic maximum",
+      "claim_level": "optimal",
+      "value": "16",
+      "certificate": "c4_z25_max.json"
+    },
+    {
+      "claim": "Z125 cyclic bounds",
+      "claim_level": "feasible lower bound; certified upper bound; unresolved maximum",
+      "lower": "64",
+      "upper": "80",
+      "certificates": [
+        "c2_block_search125.json",
+        "c4_z25_max.json"
+      ],
+      "orbit_representatives": "791",
+      "unexplored_branches": "810"
+    },
+    {
+      "claim": "cubic square sweep",
+      "claim_level": "bounded box",
+      "N": [
+        "4",
+        "25"
+      ],
+      "k": [
+        "3"
+      ],
+      "n_lo": "1",
+      "n_hi": "5000000",
+      "certificates": [
+        "c4_null_s2_k3_5m.json",
+        "c4_null_s5_k3_5m.json"
+      ]
+    },
+    {
+      "claim": "higher-k square sweep",
+      "claim_level": "bounded box",
+      "N": [
+        "4",
+        "25"
+      ],
+      "k_lo": "5",
+      "k_hi": "200",
+      "n_lo": "1",
+      "n_hi": "50000",
+      "certificates": [
+        "c2_null_s2_k5_100.json",
+        "c2_null_s5_k5_100.json",
+        "c4_null_s2_k101_200_50k.json",
+        "c4_null_s5_k101_200_50k.json"
+      ]
+    }
+  ],
+  "research": {
+    "claim": "none",
+    "walker_candidates": "163",
+    "walker_promoted": "0",
+    "window_candidates": "11529",
+    "window_processed": "11529",
+    "window_greedy_deficits": "11449",
+    "z125": "unresolved; see c4_h0_orbits.json and c4_h0_residual.json",
+    "glued_tail": "gated; no candidate crossed UB_ref; implementation not activated"
+  },
+  "limitations": [
+    "No complete positive H0 proof available for end-to-end validation.",
+    "Greedy puncture and window probes do not exhaust coupled or self-similar gluing constructions.",
+    "No literature baseline or external problem status was checked."
+  ],
+  "release": "User trial and explicit approval required; Relay cannot deploy."
+}

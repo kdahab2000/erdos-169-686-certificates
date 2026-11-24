@@ -1,0 +1,3 @@
+dual status feasible exact dual seconds 7.746667958039325
+{'valid': True, 'max_delta': {'num': '0', 'den': '1'}, 'unique_optimum': False} replay_seconds 0.6712198750465177
+TOTAL_SECONDS 8.572874667006545

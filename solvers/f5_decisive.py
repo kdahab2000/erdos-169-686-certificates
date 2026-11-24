@@ -84,25 +84,28 @@ def edges_for(a,L):
     return sorted(edges)
 
 
-def solve_dual(L):
+def solve_dual(L, quantized=False):
     """Exact feasible sparse dual search; failure is explicitly inconclusive."""
     candidates = build_tail_automaton(L)
     capacity = {}
     arcs = []
     deficits = {}
+    Q = 10**60
+    def initial_capacity(r):
+        return Fraction(Q//r,Q) if quantized else Fraction(1,r)
     for a in candidates:
-        remaining = Fraction(1,a)
+        remaining = Fraction((Q+a-1)//a,Q) if quantized else Fraction(1,a)
         edges = edges_for(a,L)
         edges.sort(key=lambda e:(len([x for x in e if x!=a and x<1+5**L]),max(e),e))
         for edge in edges:
             head = [r for r in edge if r!=a and r<1+5**L]
-            weight = min([remaining]+[capacity.get(r,Fraction(1,r)) for r in head])
+            weight = min([remaining]+[capacity.get(r,initial_capacity(r)) for r in head])
             if weight<=0:
                 continue
             arcs.append({'a':str(a),'start':str(edge[0]),'diff':str(edge[1]-edge[0]),
                          'weight':{'num':str(weight.numerator),'den':str(weight.denominator)}})
             for r in head:
-                capacity[r] = capacity.get(r,Fraction(1,r))-weight
+                capacity[r] = capacity.get(r,initial_capacity(r))-weight
             remaining -= weight
             if not remaining:
                 break
@@ -259,10 +262,12 @@ def z125_search(max_nodes=2000):
             best=candidate
     nodes=0
     complete=True
+    frontier=[]
     def visit(selected,undecided):
         nonlocal best,nodes,complete
         if nodes>=max_nodes:
             complete=False
+            frontier.append({"selected_mask":str(selected),"undecided_mask":str(undecided)})
             return
         nodes+=1
         if selected.bit_count()+undecided.bit_count()<=best.bit_count():
@@ -286,7 +291,7 @@ def z125_search(max_nodes=2000):
         visit(selected,rest)
     # Translation invariance permits requiring zero for cardinality alone.
     visit(1,((1<<125)-1)^1)
-    return {'distinct_progressions':str(len(edges)),'status':'complete' if complete else 'unresolved',
+    return {'unexplored_branches':frontier,'distinct_progressions':str(len(edges)),'status':'complete' if complete else 'unresolved',
             'nodes':str(nodes),'node_limit':str(max_nodes),'cardinality_lower_bound':str(best.bit_count()),
             'digits':list(map(str,[r for r in range(125) if best>>r&1])),
             'cardinality_upper_bound':str(best.bit_count()) if complete else '100',

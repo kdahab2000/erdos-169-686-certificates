@@ -8,6 +8,9 @@ branch-and-bound proof format used by this implementation.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+import copy
 import hashlib
 import json
 import re
@@ -211,19 +214,39 @@ def verify_digitset(cert: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
+_DIGEST_INDEX = ContextVar("digest_index", default=None)
+
+
+@contextmanager
+def digest_run(base_dir):
+    """Snapshot canonical content for this replay only; never cache across runs."""
+    root = Path(base_dir).resolve()
+    index = {}
+    for path in sorted(root.glob("*.json")):
+        try:
+            path.resolve().relative_to(root)
+            obj = load_strict(path)
+        except (OSError, ValueError):
+            continue
+        index[hashlib.sha256(canonical_bytes(obj)).hexdigest()] = obj
+    token = _DIGEST_INDEX.set((root, index))
+    try:
+        yield
+    finally:
+        _DIGEST_INDEX.reset(token)
+
+
 def resolve_digest(digest, base_dir):
     if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
         raise BadCertificate("invalid reference digest")
-    base_dir = Path(base_dir).resolve()
-    for path in sorted(base_dir.glob("*.json")):
-        try:
-            path.resolve().relative_to(base_dir)
-        except ValueError:
-            continue
-        obj = load_strict(path)
-        if hashlib.sha256(canonical_bytes(obj)).hexdigest() == digest:
-            return obj
-    raise BadCertificate("reference digest not found in certificate directory")
+    root = Path(base_dir).resolve()
+    active = _DIGEST_INDEX.get()
+    if active is None or active[0] != root:
+        with digest_run(root):
+            return resolve_digest(digest, root)
+    if digest not in active[1]:
+        raise BadCertificate("reference digest not found in certificate directory")
+    return copy.deepcopy(active[1][digest])
 
 
 def verify_prefix(cert, base_dir=None):
@@ -783,12 +806,522 @@ def verify_rigidity(cert, base_dir=None):
             raise BadCertificate("insufficient candidate coverage")
     return {"valid":True,"max_delta":{"num":"0","den":"1"},"unique_optimum":margin>0}
 
+def carry_ap_free(base, digits, k):
+    """Finite positive-difference APs correspond exactly to accepting carry paths."""
+    zero = (0,)*(k-1)
+    queue = [(zero, False)]
+    seen = set(queue)
+    present = set(digits)
+    for carries, nonzero in queue:
+        for u in digits:
+            for v in range(base):
+                values = tuple(c+u+j*v for j,c in enumerate(carries,1))
+                if any(x % base not in present for x in values):
+                    continue
+                nxt = (tuple(x//base for x in values), nonzero or v != 0)
+                if nxt == (zero, True):
+                    return False
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append(nxt)
+    return True
+
+
+def quantized_enclosure(base, digits, s, depth, q):
+    # Streaming product avoids retaining the million-term depth-10 head.
+    from itertools import product
+    d, maximum = len(digits), max(digits)
+    lb = ub = 0
+    shell = base**(depth-1)
+    for word in product(digits, repeat=depth):
+        x = 0
+        for digit in word:
+            x = base*x+digit
+        denominator = s+x
+        lb += q//denominator
+        ub += (q+denominator-1)//denominator
+        if x >= shell:
+            denominator = (base-d)*(base*x+maximum+s)
+            numerator = q*base*d
+            lb += numerator//denominator
+            denominator = (base-d)*x
+            ub += (q*d+denominator-1)//denominator
+    return lb, ub
+
+
+def verify_quantized_block(cert):
+    exact_keys(cert,('schema','k','B','D','s','depth','Q','ap_mode','ap_params','lb_num','ub_num'),'quantized block')
+    if cert['schema'] != 'erd169.quantized_block.v1':
+        raise BadCertificate('wrong quantized schema')
+    k = integer(cert['k'],'k',3)
+    base = integer(cert['B'],'B',2)
+    s = integer(cert['s'],'s',1)
+    depth = integer(cert['depth'],'depth',1)
+    q = integer(cert['Q'],'Q',1)
+    lb = integer(cert['lb_num'],'lb_num',0)
+    ub = integer(cert['ub_num'],'ub_num',0)
+    if k>6 or base>128 or s>10000 or depth>20 or q!=10**60 or lb>ub:
+        raise BadCertificate('quantized parameter cap/order')
+    if not isinstance(cert['D'],list) or not 2<=len(cert['D'])<base:
+        raise BadCertificate('quantized digit cap')
+    digits = [integer(x,'D',0) for x in cert['D']]
+    if digits != sorted(set(digits)) or digits[0]!=0 or digits[-1]>=base:
+        raise BadCertificate('invalid quantized digits')
+    if len(digits)**depth>1100000:
+        raise BadCertificate('quantized enumeration cap')
+    params = cert['ap_params']
+    if not isinstance(params,dict):
+        raise BadCertificate('AP params must be object')
+    if cert['ap_mode']=='prime_power_cyclic':
+        exact_keys(params,('p','block_len'),'AP params')
+        p = integer(params['p'],'p',2)
+        length = integer(params['block_len'],'block_len',1)
+        if p>base or length>7 or k<p or any(p%j==0 for j in range(2,isqrt(p)+1)) or p**length!=base:
+            raise BadCertificate('invalid prime power')
+        present = set(digits)
+        if any(all((a+j*w)%base in present for j in range(p)) for a in digits for w in range(1,base)):
+            raise BadCertificate('cyclic AP')
+    elif cert['ap_mode']=='carry_automaton':
+        exact_keys(params,(),'AP params')
+        if not carry_ap_free(base,digits,k):
+            raise BadCertificate('carry automaton accepts an AP')
+    else:
+        raise BadCertificate('unknown AP proof mode')
+    if quantized_enclosure(base,digits,s,depth,q)!=(lb,ub):
+        raise BadCertificate('quantized endpoint mismatch')
+    return {'valid':True,'lb_num':str(lb),'ub_num':str(ub)}
+
+
+def verify_rigidity_v2(cert, base_dir=None):
+    exact_keys(cert,("schema","k","p","D","s","L","candidates","dual_arcs","min_nonempty_loss","pure_ref_sha256"),"rigidity")
+    if (cert["schema"] != "erd169.rigidity.v2" or cert["k"] != "5" or cert["p"] != "5"
+            or cert["s"] != "1" or cert["D"] != ["0","1","2","3"]):
+        raise BadCertificate("rigidity parameter mismatch")
+    level = integer(cert["L"],"L",1)
+    if level>9:
+        raise BadCertificate("rigidity level cap")
+    if not isinstance(cert["candidates"],list) or len(cert["candidates"])>2000:
+        raise BadCertificate("candidate array cap")
+    candidates = [integer(x,"candidate",1) for x in cert["candidates"]]
+    if candidates != rigidity_candidates(level):
+        raise BadCertificate("incomplete or invalid candidate list")
+    cutoff = 1+5**level
+    reflection = 3*(5**level-1)//4+2
+    candidate_set = set(candidates)
+    for a in candidates:
+        if reflection-a not in candidate_set or not tail_compatible(a,1,level,[0,1,2,3]):
+            raise BadCertificate("candidate tail/reflection mismatch")
+    margin = fraction_obj(cert["min_nonempty_loss"],"min_nonempty_loss")
+    if base_dir is None:
+        raise BadCertificate("pure reference requires directory")
+    ref = resolve_digest(cert["pure_ref_sha256"],base_dir)
+    verify_block_digit(ref)
+    if ref["p"]!="5" or ref["k"]!="5" or ref["block_len"]!="1" or ref["s"]!="1" or ref["D"]!=cert["D"]:
+        raise BadCertificate("pure reference mismatch")
+    if not isinstance(cert["dual_arcs"],list) or len(cert["dual_arcs"])>100000:
+        raise BadCertificate("arc array cap")
+    coverage = {a:Fraction() for a in candidates}
+    load = {}
+    seen = set()
+    def bounded(value):
+        if max(value.numerator.bit_length(),value.denominator.bit_length())>4096:
+            raise BadCertificate("rigidity rational sum exceeds cap")
+        return value
+    for arc in cert["dual_arcs"]:
+        if not isinstance(arc,dict):
+            raise BadCertificate("arc must be object")
+        exact_keys(arc,("a","start","diff","weight"),"arc")
+        a = integer(arc["a"],"a",1)
+        start = integer(arc["start"],"start",1)
+        diff = integer(arc["diff"],"diff",1)
+        # Any admissible arc has d < 5**L. This also bounds membership work.
+        if a not in candidate_set or diff>=5**level or start>=cutoff:
+            raise BadCertificate("arc range")
+        identity = (a,start,diff)
+        if identity in seen:
+            raise BadCertificate("duplicate arc")
+        seen.add(identity)
+        terms = [start+j*diff for j in range(5)]
+        if a not in terms or any(not padded_member(x-1,[0,1,2,3]) for x in terms if x!=a):
+            raise BadCertificate("forged progression")
+        head = rigidity_head_terms(terms,a,cutoff)
+        if not head:
+            raise BadCertificate("arc has no removable head point")
+        weight = fraction_obj(arc["weight"],"weight")
+        if weight<=0:
+            raise BadCertificate("nonpositive weight")
+        coverage[a] = bounded(coverage[a]+weight)
+        for r in head:
+            load[r] = bounded(load.get(r,Fraction())+weight)
+            if load[r]>Fraction(1,r):
+                raise BadCertificate("overloaded head capacity")
+    for a,total in coverage.items():
+        if total<bounded(Fraction(1,a)+margin):
+            raise BadCertificate("insufficient candidate coverage")
+    return {"valid":True,"max_delta":{"num":"0","den":"1"},"unique_optimum":margin>0}
+
+def iroot(value, k):
+    if value < 0 or k < 1:
+        raise BadCertificate('root domain')
+    if value < 2 or k == 1:
+        return value
+    x = 1 << ((value.bit_length()+k-1)//k)
+    while True:
+        y = ((k-1)*x+value//(x**(k-1)))//k
+        if y >= x:
+            return x
+        x = y
+
+
+def icbrt(value):
+    return iroot(value,3)
+
+
+def cubic_sieve_hits(s, lo, hi):
+    """Hard-coded CRT necessary conditions, followed by exact inversion."""
+    moduli = (17017,12673,47027)
+    allowed = []
+    for modulus in moduli:
+        image = {(x*x*x-x)%modulus for x in range(modulus)}
+        allowed.append(bytearray(s*s*(y*y*y-y)%modulus in image for y in range(modulus)))
+    for n in range(lo,hi+1):
+        y = n+2
+        if not all(table[y%modulus] for modulus,table in zip(moduli,allowed)):
+            continue
+        target = s*s*(y*y*y-y)
+        x = icbrt(target)+1
+        if x*x*x-x == target and x-2 >= n+3:
+            yield 3,n,x-2
+
+
+def prime_power_sieve_hits(s, k_lo, k_hi, lo, hi, survivor_cap=200000):
+    from collections import deque
+    limit = hi+k_hi
+    spf = list(range(limit+1))
+    for p in range(2,isqrt(limit)+1):
+        if spf[p] == p:
+            for x in range(p*p,limit+1,p):
+                if spf[x] == x:
+                    spf[x] = p
+    factors = [[] for _ in range(limit+1)]
+    for t in range(2,limit+1):
+        x = t
+        while x>1:
+            p = spf[x]
+            q = 1
+            while x%p==0:
+                x//=p
+                q*=p
+            factors[t].append((p,q))
+    survivors = 0
+    for k in range(k_lo,k_hi+1):
+        queue = deque()
+        def add(t):
+            score = max((t+q for p,q in factors[t] if p>k and s%p),default=0)
+            while queue and queue[-1][1]<=score:
+                queue.pop()
+            queue.append((t,score))
+        for t in range(lo+1,lo+k+1):
+            add(t)
+        product = 1
+        for j in range(1,k+1):
+            product *= lo+j
+        for n in range(lo,hi+1):
+            while queue and queue[0][0]<=n:
+                queue.popleft()
+            bound = queue[0][1]-k+1
+            if bound<=0 or bound**k < s*s*(n+k)**k:
+                survivors += 1
+                if survivors>survivor_cap:
+                    raise BadCertificate('prime power survivor cap')
+                target = s*s*product
+                r = iroot(target,k)
+                left,right = max(n+k,r-k+1),r-1
+                while left<=right:
+                    m = (left+right)//2
+                    value = 1
+                    for j in range(1,k+1):
+                        value *= m+j
+                    if value == target:
+                        yield k,n,m
+                        break
+                    if value<target:
+                        left = m+1
+                    else:
+                        right = m-1
+            if n<hi:
+                product = product*(n+k+1)//(n+1)
+                add(n+k+1)
+    return survivors
+
+
+def verify_sieve_null(cert):
+    exact_keys(cert,('schema','s','k_lo','k_hi','n_lo','n_hi','method','domain'),'sieve null')
+    if cert['schema']!='erd686.sieve_null.v1' or cert['domain']!='n>=1':
+        raise BadCertificate('sieve schema/domain')
+    s = integer(cert['s'],'s',2)
+    kl = integer(cert['k_lo'],'k_lo',3)
+    kh = integer(cert['k_hi'],'k_hi',3)
+    lo = integer(cert['n_lo'],'n_lo',1)
+    hi = integer(cert['n_hi'],'n_hi',1)
+    if s>10000 or kl>kh or lo>hi:
+        raise BadCertificate('sieve parameter cap/order')
+    if cert['method']=='cubic_crt_icbrt':
+        if kl!=3 or kh!=3 or hi>5000000:
+            raise BadCertificate('cubic cap')
+        hits = cubic_sieve_hits(s,lo,hi)
+    elif cert['method']=='prime_power_exclusion':
+        if kl<5 or kh>200 or hi>100000 or (kh-kl+1)*(hi-lo+1)>10000000:
+            raise BadCertificate('prime power cap')
+        hits = prime_power_sieve_hits(s,kl,kh,lo,hi)
+    else:
+        raise BadCertificate('unknown sieve method')
+    try:
+        k,n,m = next(hits)
+    except StopIteration as done:
+        return {'valid':True,'survivors':str(done.value) if done.value is not None else 'not recorded'}
+    raise BadCertificate(f'sieve hit k={k} n={n} m={m}; emit erd686.rep.v1')
+
+
+def cyclic_progressions(modulus):
+    # Store a canonical (start,difference) for each distinct cyclic AP set.
+    edges = {}
+    for a in range(modulus):
+        for d in range(1,modulus):
+            terms = frozenset((a+j*d)%modulus for j in range(5))
+            edges.setdefault(terms,(a,d))
+    return edges
+
+
+def verify_cyclic_max(cert):
+    exact_keys(cert,('schema','modulus','p','max_cardinality','witness','mode','proof'),'cyclic max')
+    if cert['schema']!='erd169.cyclic_max.v1' or cert['p']!='5' or cert['modulus']!='25' or cert['mode']!='direct_bnb':
+        raise BadCertificate('unsupported cyclic proof mode; Z125 remains unresolved')
+    maximum = integer(cert['max_cardinality'],'maximum',0)
+    if maximum>25 or not isinstance(cert['witness'],list) or len(cert['witness'])!=maximum:
+        raise BadCertificate('cyclic witness cap')
+    witness = [integer(x,'witness',0) for x in cert['witness']]
+    if witness!=sorted(set(witness)) or any(x>=25 for x in witness):
+        raise BadCertificate('cyclic witness range/order')
+    edges = cyclic_progressions(25)
+    if any(edge<=set(witness) for edge in edges):
+        raise BadCertificate('cyclic witness has AP')
+    nodes = cert['proof']
+    if not isinstance(nodes,list) or not 1<=len(nodes)<=1000000:
+        raise BadCertificate('cyclic tree cap')
+    index = 0
+    full = set(range(25))
+    def parse_ap(pair):
+        if not isinstance(pair,list) or len(pair)!=2:
+            raise BadCertificate('cyclic AP pair')
+        a,d = [integer(x,'AP',0) for x in pair]
+        if a>=25 or not 1<=d<25:
+            raise BadCertificate('cyclic AP range')
+        return {(a+j*d)%25 for j in range(5)}
+    def visit(selected,excluded):
+        nonlocal index
+        if index>=len(nodes):
+            raise BadCertificate('truncated cyclic tree')
+        node = nodes[index]; index+=1
+        if not isinstance(node,dict):
+            raise BadCertificate('cyclic node must be object')
+        op = node.get('op')
+        undecided = full-selected-excluded
+        if op=='branch':
+            exact_keys(node,('op','j'),'cyclic branch')
+            j = integer(node['j'],'j',0)
+            if j not in undecided:
+                raise BadCertificate('cyclic repeated branch')
+            visit(selected|{j},excluded)
+            visit(selected,excluded|{j})
+        elif op=='conflict':
+            exact_keys(node,('op','ap'),'cyclic conflict')
+            if not parse_ap(node['ap'])<=selected:
+                raise BadCertificate('forged cyclic conflict')
+        elif op=='prune':
+            exact_keys(node,('op','aps'),'cyclic prune')
+            if not isinstance(node['aps'],list) or len(node['aps'])>25:
+                raise BadCertificate('cyclic packing cap')
+            occupied = set()
+            for pair in node['aps']:
+                edge = parse_ap(pair)
+                active = edge & undecided
+                if edge&excluded or not active or edge&occupied:
+                    raise BadCertificate('invalid cyclic packing')
+                occupied |= edge
+            if len(selected)+len(undecided)-len(node['aps'])>maximum:
+                raise BadCertificate('invalid cyclic upper bound')
+        else:
+            raise BadCertificate('unknown cyclic node')
+    visit(set(),set())
+    if index!=len(nodes):
+        raise BadCertificate('unused cyclic nodes')
+    return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
+
+
+def dense_z25_fibres(threshold):
+    masks = [sum(1<<x for x in edge) for edge in cyclic_progressions(25)]
+    incidence = [[e for e in masks if e>>j&1] for j in range(25)]
+    def visit(selected,todo):
+        if selected.bit_count()+todo.bit_count()<threshold:
+            return
+        if not todo:
+            yield selected
+            return
+        bit = todo&-todo
+        j = bit.bit_length()-1
+        rest = todo^bit
+        chosen = selected|bit
+        if not any(e&chosen==e for e in incidence[j]):
+            forced = 0
+            for e in incidence[j]:
+                missing = e&~chosen
+                if missing.bit_count()==1:
+                    forced |= missing
+            yield from visit(chosen,rest&~forced)
+        yield from visit(selected,rest)
+    yield from visit(0,(1<<25)-1)
+
+
+def verify_h0_cyclic_max(cert,base_dir):
+    exact_keys(cert,('schema','modulus','p','max_cardinality','witness','mode','proof'),'H0 max')
+    if cert['schema']!='erd169.cyclic_max.v1' or cert['modulus']!='125' or cert['p']!='5' or cert['mode']!='h0_orbit_bnb':
+        raise BadCertificate('wrong H0 parameters')
+    maximum = integer(cert['max_cardinality'],'maximum',0)
+    if not 64<=maximum<=80 or not isinstance(cert['witness'],list) or len(cert['witness'])!=maximum:
+        raise BadCertificate('H0 witness cap')
+    witness = [integer(x,'witness',0) for x in cert['witness']]
+    if witness!=sorted(set(witness)) or witness[-1]>=125:
+        raise BadCertificate('invalid H0 witness')
+    proof = cert['proof']
+    if not isinstance(proof,dict):
+        raise BadCertificate('H0 proof must be object')
+    exact_keys(proof,('z25_ref_sha256','orbits'),'H0 proof')
+    orbits = proof['orbits']
+    if not isinstance(orbits,list) or not 1<=len(orbits)<=1000:
+        raise BadCertificate('H0 orbit cap')
+    total = 0
+    threshold = (maximum+5)//5
+    for orbit in orbits:
+        if not isinstance(orbit,dict):
+            raise BadCertificate('H0 orbit must be object')
+        exact_keys(orbit,('fibre','tree'),'H0 orbit')
+        if not isinstance(orbit['fibre'],list) or not threshold<=len(orbit['fibre'])<=16:
+            raise BadCertificate('H0 fibre cap')
+        if not isinstance(orbit['tree'],list) or not orbit['tree']:
+            raise BadCertificate('H0 tree array')
+        total += len(orbit['tree'])
+        if total>1000000:
+            raise BadCertificate('H0 total node cap')
+    if base_dir is None:
+        raise BadCertificate('H0 reference requires directory')
+    ref = resolve_digest(proof['z25_ref_sha256'],base_dir)
+    verify_cyclic_max(ref)
+    if ref['modulus']!='25' or ref['max_cardinality']!='16':
+        raise BadCertificate('H0 requires Z25 maximum 16')
+    edges = cyclic_progressions(125)
+    present = set(witness)
+    if any(edge<=present for edge in edges):
+        raise BadCertificate('H0 witness has AP')
+    coverage = set()
+    representatives = set()
+    units = [a for a in range(25) if gcd(a,25)==1]
+    parsed = []
+    for orbit in orbits:
+        fibre = [integer(x,'fibre',0) for x in orbit['fibre']]
+        if fibre!=sorted(set(fibre)) or fibre[-1]>=25:
+            raise BadCertificate('H0 fibre range/order')
+        if any(edge<=set(fibre) for edge in cyclic_progressions(25)):
+            raise BadCertificate('H0 fibre contains AP')
+        mask = sum(1<<x for x in fibre)
+        if mask in representatives:
+            raise BadCertificate('duplicate H0 representative')
+        representatives.add(mask)
+        for a in units:
+            for c in range(25):
+                coverage.add(sum(1<<((a*x+c)%25) for x in fibre))
+        parsed.append((fibre,orbit['tree']))
+    if any(mask not in coverage for mask in dense_z25_fibres(threshold)):
+        raise BadCertificate('incomplete H0 affine orbit coverage')
+    full = set(range(125))
+    cosets = [{a+25*j for j in range(5)} for a in range(25)]
+    fibres = [{a+5*j for j in range(25)} for a in range(5)]
+    for fibre,nodes in parsed:
+        selected0 = {5*y for y in fibre}
+        excluded0 = {5*y for y in range(25)}-selected0
+        index = 0
+        def ap(pair):
+            if not isinstance(pair,list) or len(pair)!=2:
+                raise BadCertificate('H0 AP pair')
+            a,d = [integer(x,'AP',0) for x in pair]
+            if a>=125 or not 1<=d<125:
+                raise BadCertificate('H0 AP range')
+            return {(a+j*d)%125 for j in range(5)}
+        def visit(selected,excluded):
+            nonlocal index
+            if index>=len(nodes):
+                raise BadCertificate('truncated H0 tree')
+            node = nodes[index]
+            index+=1
+            if not isinstance(node,dict):
+                raise BadCertificate('H0 node must be object')
+            undecided = full-selected-excluded
+            op = node.get('op')
+            if op=='branch':
+                exact_keys(node,('op','j'),'H0 branch')
+                j = integer(node['j'],'j',0)
+                if j not in undecided:
+                    raise BadCertificate('H0 branch violates fixed fibre')
+                visit(selected|{j},excluded)
+                visit(selected,excluded|{j})
+            elif op=='conflict':
+                exact_keys(node,('op','ap'),'H0 conflict')
+                if not ap(node['ap'])<=selected:
+                    raise BadCertificate('forged H0 conflict')
+            elif op=='prune':
+                bound = node.get('bound')
+                if bound in ('coset','fibre'):
+                    exact_keys(node,('op','bound'),'H0 bound')
+                    parts,cap = (cosets,4) if bound=='coset' else (fibres,16)
+                    upper = len(selected)+sum(min(len(part&undecided),cap-len(part&selected)) for part in parts)
+                elif bound=='packing':
+                    exact_keys(node,('op','bound','aps'),'H0 packing')
+                    if not isinstance(node['aps'],list) or len(node['aps'])>125:
+                        raise BadCertificate('H0 packing cap')
+                    occupied = set()
+                    for pair in node['aps']:
+                        edge = ap(pair)
+                        active = edge&undecided
+                        if edge&excluded or not active or edge&occupied:
+                            raise BadCertificate('invalid H0 packing')
+                        occupied |= edge
+                    upper = len(selected)+len(undecided)-len(node['aps'])
+                else:
+                    raise BadCertificate('unknown H0 bound')
+                if upper>maximum:
+                    raise BadCertificate('invalid H0 prune bound')
+            else:
+                raise BadCertificate('unknown H0 node')
+        visit(selected0,excluded0)
+        if index!=len(nodes):
+            raise BadCertificate('unused H0 nodes')
+    return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
+
+
 def verify_certificate(cert: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
     """Verify one standalone certificate and return a structured result."""
 
     if not isinstance(cert, dict):
         raise BadCertificate("certificate is not an object")
     schema = cert.get("schema")
+    if schema == "erd169.quantized_block.v1":
+        return verify_quantized_block(cert)
+    if schema == "erd169.rigidity.v2":
+        return verify_rigidity_v2(cert, base_dir)
+    if schema == "erd169.cyclic_max.v1":
+        if cert.get("mode") == "h0_orbit_bnb":
+            return verify_h0_cyclic_max(cert,base_dir)
+        return verify_cyclic_max(cert)
     if schema == "erd169.block_digit.v1":
         return verify_block_digit(cert)
     if schema == "erd169.head_tail.v1":
@@ -803,6 +1336,8 @@ def verify_certificate(cert: Mapping[str, Any], base_dir=None) -> Dict[str, Any]
         return verify_digitset(cert)
     if schema == "erd169.prefix_opt.v1":
         return verify_prefix(cert, base_dir)
+    if schema == "erd686.sieve_null.v1":
+        return verify_sieve_null(cert)
     if schema == "erd686.rep.v1":
         return verify_686_rep(cert)
     if schema == "erd686.null.v1":
@@ -851,13 +1386,14 @@ def main(argv: List[str]) -> int:
         if not isinstance(entries, list):
             raise BadCertificate("manifest must contain an entries array")
         failures = 0
-        for entry in entries:
-            answer = verify_entry(entry, manifest_path.parent)
-            status = "OK" if answer.get("valid") else "FAIL"
-            print(f"{status} {entry.get('path', '<unknown>') if isinstance(entry, dict) else '<invalid>'}")
-            if not answer.get("valid"):
-                failures += 1
-                print(f"  {answer.get('error', answer.get('errors'))}", file=sys.stderr)
+        with digest_run(manifest_path.parent):
+            for entry in entries:
+                answer = verify_entry(entry, manifest_path.parent)
+                status = "OK" if answer.get("valid") else "FAIL"
+                print(f"{status} {entry.get('path', '<unknown>') if isinstance(entry, dict) else '<invalid>'}")
+                if not answer.get("valid"):
+                    failures += 1
+                    print(f"  {answer.get('error', answer.get('errors'))}", file=sys.stderr)
         print(f"verified={len(entries)} failures={failures}")
         return 1 if failures else 0
     except (OSError, json.JSONDecodeError, BadCertificate, ValueError) as exc:

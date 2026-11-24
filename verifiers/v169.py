@@ -8,7 +8,7 @@ used anywhere in this module.
 from __future__ import annotations
 
 from fractions import Fraction
-from math import isqrt
+from math import isqrt, gcd
 from .standalone_verify import resolve_digest
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
@@ -600,8 +600,395 @@ def verify_rigidity(cert, base_dir=None):
             raise CertificateError("insufficient candidate coverage")
     return {"valid":True,"max_delta":{"num":"0","den":"1"},"unique_optimum":margin>0}
 
+def carry_ap_free(base, digits, k):
+    """Finite positive-difference APs correspond exactly to accepting carry paths."""
+    zero = (0,)*(k-1)
+    queue = [(zero, False)]
+    seen = set(queue)
+    present = set(digits)
+    for carries, nonzero in queue:
+        for u in digits:
+            for v in range(base):
+                values = tuple(c+u+j*v for j,c in enumerate(carries,1))
+                if any(x % base not in present for x in values):
+                    continue
+                nxt = (tuple(x//base for x in values), nonzero or v != 0)
+                if nxt == (zero, True):
+                    return False
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append(nxt)
+    return True
+
+
+def quantized_enclosure(base, digits, s, depth, q):
+    # Streaming product avoids retaining the million-term depth-10 head.
+    from itertools import product
+    d, maximum = len(digits), max(digits)
+    lb = ub = 0
+    shell = base**(depth-1)
+    for word in product(digits, repeat=depth):
+        x = 0
+        for digit in word:
+            x = base*x+digit
+        denominator = s+x
+        lb += q//denominator
+        ub += (q+denominator-1)//denominator
+        if x >= shell:
+            denominator = (base-d)*(base*x+maximum+s)
+            numerator = q*base*d
+            lb += numerator//denominator
+            denominator = (base-d)*x
+            ub += (q*d+denominator-1)//denominator
+    return lb, ub
+
+
+def verify_quantized_block(cert):
+    require_exact_keys(cert,('schema','k','B','D','s','depth','Q','ap_mode','ap_params','lb_num','ub_num'),'quantized block')
+    if cert['schema'] != 'erd169.quantized_block.v1':
+        raise CertificateError('wrong quantized schema')
+    k = canonical_integer(cert['k'],'k',3)
+    base = canonical_integer(cert['B'],'B',2)
+    s = canonical_integer(cert['s'],'s',1)
+    depth = canonical_integer(cert['depth'],'depth',1)
+    q = canonical_integer(cert['Q'],'Q',1)
+    lb = canonical_integer(cert['lb_num'],'lb_num',0)
+    ub = canonical_integer(cert['ub_num'],'ub_num',0)
+    if k>6 or base>128 or s>10000 or depth>20 or q!=10**60 or lb>ub:
+        raise CertificateError('quantized parameter cap/order')
+    if not isinstance(cert['D'],list) or not 2<=len(cert['D'])<base:
+        raise CertificateError('quantized digit cap')
+    digits = [canonical_integer(x,'D',0) for x in cert['D']]
+    if digits != sorted(set(digits)) or digits[0]!=0 or digits[-1]>=base:
+        raise CertificateError('invalid quantized digits')
+    if len(digits)**depth>1100000:
+        raise CertificateError('quantized enumeration cap')
+    params = cert['ap_params']
+    if not isinstance(params,dict):
+        raise CertificateError('AP params must be object')
+    if cert['ap_mode']=='prime_power_cyclic':
+        require_exact_keys(params,('p','block_len'),'AP params')
+        p = canonical_integer(params['p'],'p',2)
+        length = canonical_integer(params['block_len'],'block_len',1)
+        if p>base or length>7 or k<p or any(p%j==0 for j in range(2,isqrt(p)+1)) or p**length!=base:
+            raise CertificateError('invalid prime power')
+        present = set(digits)
+        if any(all((a+j*w)%base in present for j in range(p)) for a in digits for w in range(1,base)):
+            raise CertificateError('cyclic AP')
+    elif cert['ap_mode']=='carry_automaton':
+        require_exact_keys(params,(),'AP params')
+        if not carry_ap_free(base,digits,k):
+            raise CertificateError('carry automaton accepts an AP')
+    else:
+        raise CertificateError('unknown AP proof mode')
+    if quantized_enclosure(base,digits,s,depth,q)!=(lb,ub):
+        raise CertificateError('quantized endpoint mismatch')
+    return {'valid':True,'lb_num':str(lb),'ub_num':str(ub)}
+
+
+def verify_rigidity_v2(cert, base_dir=None):
+    require_exact_keys(cert,("schema","k","p","D","s","L","candidates","dual_arcs","min_nonempty_loss","pure_ref_sha256"),"rigidity")
+    if (cert["schema"] != "erd169.rigidity.v2" or cert["k"] != "5" or cert["p"] != "5"
+            or cert["s"] != "1" or cert["D"] != ["0","1","2","3"]):
+        raise CertificateError("rigidity parameter mismatch")
+    level = canonical_integer(cert["L"],"L",1)
+    if level>9:
+        raise CertificateError("rigidity level cap")
+    if not isinstance(cert["candidates"],list) or len(cert["candidates"])>2000:
+        raise CertificateError("candidate array cap")
+    candidates = [canonical_integer(x,"candidate",1) for x in cert["candidates"]]
+    if candidates != rigidity_candidates(level):
+        raise CertificateError("incomplete or invalid candidate list")
+    cutoff = 1+5**level
+    reflection = 3*(5**level-1)//4+2
+    candidate_set = set(candidates)
+    for a in candidates:
+        if reflection-a not in candidate_set or not tail_compatible(a,1,level,[0,1,2,3]):
+            raise CertificateError("candidate tail/reflection mismatch")
+    margin = canonical_fraction_object(cert["min_nonempty_loss"],"min_nonempty_loss")
+    if base_dir is None:
+        raise CertificateError("pure reference requires directory")
+    ref = resolve_digest(cert["pure_ref_sha256"],base_dir)
+    verify_block_digit(ref)
+    if ref["p"]!="5" or ref["k"]!="5" or ref["block_len"]!="1" or ref["s"]!="1" or ref["D"]!=cert["D"]:
+        raise CertificateError("pure reference mismatch")
+    if not isinstance(cert["dual_arcs"],list) or len(cert["dual_arcs"])>100000:
+        raise CertificateError("arc array cap")
+    coverage = {a:Fraction() for a in candidates}
+    load = {}
+    seen = set()
+    def bounded(value):
+        if max(value.numerator.bit_length(),value.denominator.bit_length())>4096:
+            raise CertificateError("rigidity rational sum exceeds cap")
+        return value
+    for arc in cert["dual_arcs"]:
+        if not isinstance(arc,dict):
+            raise CertificateError("arc must be object")
+        require_exact_keys(arc,("a","start","diff","weight"),"arc")
+        a = canonical_integer(arc["a"],"a",1)
+        start = canonical_integer(arc["start"],"start",1)
+        diff = canonical_integer(arc["diff"],"diff",1)
+        # Any admissible arc has d < 5**L. This also bounds membership work.
+        if a not in candidate_set or diff>=5**level or start>=cutoff:
+            raise CertificateError("arc range")
+        identity = (a,start,diff)
+        if identity in seen:
+            raise CertificateError("duplicate arc")
+        seen.add(identity)
+        terms = [start+j*diff for j in range(5)]
+        if a not in terms or any(not padded_member(x-1,[0,1,2,3]) for x in terms if x!=a):
+            raise CertificateError("forged progression")
+        head = rigidity_head_terms(terms,a,cutoff)
+        if not head:
+            raise CertificateError("arc has no removable head point")
+        weight = canonical_fraction_object(arc["weight"],"weight")
+        if weight<=0:
+            raise CertificateError("nonpositive weight")
+        coverage[a] = bounded(coverage[a]+weight)
+        for r in head:
+            load[r] = bounded(load.get(r,Fraction())+weight)
+            if load[r]>Fraction(1,r):
+                raise CertificateError("overloaded head capacity")
+    for a,total in coverage.items():
+        if total<bounded(Fraction(1,a)+margin):
+            raise CertificateError("insufficient candidate coverage")
+    return {"valid":True,"max_delta":{"num":"0","den":"1"},"unique_optimum":margin>0}
+
+def cyclic_progressions(modulus):
+    # Store a canonical (start,difference) for each distinct cyclic AP set.
+    edges = {}
+    for a in range(modulus):
+        for d in range(1,modulus):
+            terms = frozenset((a+j*d)%modulus for j in range(5))
+            edges.setdefault(terms,(a,d))
+    return edges
+
+
+def verify_cyclic_max(cert):
+    require_exact_keys(cert,('schema','modulus','p','max_cardinality','witness','mode','proof'),'cyclic max')
+    if cert['schema']!='erd169.cyclic_max.v1' or cert['p']!='5' or cert['modulus']!='25' or cert['mode']!='direct_bnb':
+        raise CertificateError('unsupported cyclic proof mode; Z125 remains unresolved')
+    maximum = canonical_integer(cert['max_cardinality'],'maximum',0)
+    if maximum>25 or not isinstance(cert['witness'],list) or len(cert['witness'])!=maximum:
+        raise CertificateError('cyclic witness cap')
+    witness = [canonical_integer(x,'witness',0) for x in cert['witness']]
+    if witness!=sorted(set(witness)) or any(x>=25 for x in witness):
+        raise CertificateError('cyclic witness range/order')
+    edges = cyclic_progressions(25)
+    if any(edge<=set(witness) for edge in edges):
+        raise CertificateError('cyclic witness has AP')
+    nodes = cert['proof']
+    if not isinstance(nodes,list) or not 1<=len(nodes)<=1000000:
+        raise CertificateError('cyclic tree cap')
+    index = 0
+    full = set(range(25))
+    def parse_ap(pair):
+        if not isinstance(pair,list) or len(pair)!=2:
+            raise CertificateError('cyclic AP pair')
+        a,d = [canonical_integer(x,'AP',0) for x in pair]
+        if a>=25 or not 1<=d<25:
+            raise CertificateError('cyclic AP range')
+        return {(a+j*d)%25 for j in range(5)}
+    def visit(selected,excluded):
+        nonlocal index
+        if index>=len(nodes):
+            raise CertificateError('truncated cyclic tree')
+        node = nodes[index]; index+=1
+        if not isinstance(node,dict):
+            raise CertificateError('cyclic node must be object')
+        op = node.get('op')
+        undecided = full-selected-excluded
+        if op=='branch':
+            require_exact_keys(node,('op','j'),'cyclic branch')
+            j = canonical_integer(node['j'],'j',0)
+            if j not in undecided:
+                raise CertificateError('cyclic repeated branch')
+            visit(selected|{j},excluded)
+            visit(selected,excluded|{j})
+        elif op=='conflict':
+            require_exact_keys(node,('op','ap'),'cyclic conflict')
+            if not parse_ap(node['ap'])<=selected:
+                raise CertificateError('forged cyclic conflict')
+        elif op=='prune':
+            require_exact_keys(node,('op','aps'),'cyclic prune')
+            if not isinstance(node['aps'],list) or len(node['aps'])>25:
+                raise CertificateError('cyclic packing cap')
+            occupied = set()
+            for pair in node['aps']:
+                edge = parse_ap(pair)
+                active = edge & undecided
+                if edge&excluded or not active or edge&occupied:
+                    raise CertificateError('invalid cyclic packing')
+                occupied |= edge
+            if len(selected)+len(undecided)-len(node['aps'])>maximum:
+                raise CertificateError('invalid cyclic upper bound')
+        else:
+            raise CertificateError('unknown cyclic node')
+    visit(set(),set())
+    if index!=len(nodes):
+        raise CertificateError('unused cyclic nodes')
+    return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
+
+
+def dense_z25_fibres(threshold):
+    masks = [sum(1<<x for x in edge) for edge in cyclic_progressions(25)]
+    incidence = [[e for e in masks if e>>j&1] for j in range(25)]
+    def visit(selected,todo):
+        if selected.bit_count()+todo.bit_count()<threshold:
+            return
+        if not todo:
+            yield selected
+            return
+        bit = todo&-todo
+        j = bit.bit_length()-1
+        rest = todo^bit
+        chosen = selected|bit
+        if not any(e&chosen==e for e in incidence[j]):
+            forced = 0
+            for e in incidence[j]:
+                missing = e&~chosen
+                if missing.bit_count()==1:
+                    forced |= missing
+            yield from visit(chosen,rest&~forced)
+        yield from visit(selected,rest)
+    yield from visit(0,(1<<25)-1)
+
+
+def verify_h0_cyclic_max(cert,base_dir):
+    require_exact_keys(cert,('schema','modulus','p','max_cardinality','witness','mode','proof'),'H0 max')
+    if cert['schema']!='erd169.cyclic_max.v1' or cert['modulus']!='125' or cert['p']!='5' or cert['mode']!='h0_orbit_bnb':
+        raise CertificateError('wrong H0 parameters')
+    maximum = canonical_integer(cert['max_cardinality'],'maximum',0)
+    if not 64<=maximum<=80 or not isinstance(cert['witness'],list) or len(cert['witness'])!=maximum:
+        raise CertificateError('H0 witness cap')
+    witness = [canonical_integer(x,'witness',0) for x in cert['witness']]
+    if witness!=sorted(set(witness)) or witness[-1]>=125:
+        raise CertificateError('invalid H0 witness')
+    proof = cert['proof']
+    if not isinstance(proof,dict):
+        raise CertificateError('H0 proof must be object')
+    require_exact_keys(proof,('z25_ref_sha256','orbits'),'H0 proof')
+    orbits = proof['orbits']
+    if not isinstance(orbits,list) or not 1<=len(orbits)<=1000:
+        raise CertificateError('H0 orbit cap')
+    total = 0
+    threshold = (maximum+5)//5
+    for orbit in orbits:
+        if not isinstance(orbit,dict):
+            raise CertificateError('H0 orbit must be object')
+        require_exact_keys(orbit,('fibre','tree'),'H0 orbit')
+        if not isinstance(orbit['fibre'],list) or not threshold<=len(orbit['fibre'])<=16:
+            raise CertificateError('H0 fibre cap')
+        if not isinstance(orbit['tree'],list) or not orbit['tree']:
+            raise CertificateError('H0 tree array')
+        total += len(orbit['tree'])
+        if total>1000000:
+            raise CertificateError('H0 total node cap')
+    if base_dir is None:
+        raise CertificateError('H0 reference requires directory')
+    ref = resolve_digest(proof['z25_ref_sha256'],base_dir)
+    verify_cyclic_max(ref)
+    if ref['modulus']!='25' or ref['max_cardinality']!='16':
+        raise CertificateError('H0 requires Z25 maximum 16')
+    edges = cyclic_progressions(125)
+    present = set(witness)
+    if any(edge<=present for edge in edges):
+        raise CertificateError('H0 witness has AP')
+    coverage = set()
+    representatives = set()
+    units = [a for a in range(25) if gcd(a,25)==1]
+    parsed = []
+    for orbit in orbits:
+        fibre = [canonical_integer(x,'fibre',0) for x in orbit['fibre']]
+        if fibre!=sorted(set(fibre)) or fibre[-1]>=25:
+            raise CertificateError('H0 fibre range/order')
+        if any(edge<=set(fibre) for edge in cyclic_progressions(25)):
+            raise CertificateError('H0 fibre contains AP')
+        mask = sum(1<<x for x in fibre)
+        if mask in representatives:
+            raise CertificateError('duplicate H0 representative')
+        representatives.add(mask)
+        for a in units:
+            for c in range(25):
+                coverage.add(sum(1<<((a*x+c)%25) for x in fibre))
+        parsed.append((fibre,orbit['tree']))
+    if any(mask not in coverage for mask in dense_z25_fibres(threshold)):
+        raise CertificateError('incomplete H0 affine orbit coverage')
+    full = set(range(125))
+    cosets = [{a+25*j for j in range(5)} for a in range(25)]
+    fibres = [{a+5*j for j in range(25)} for a in range(5)]
+    for fibre,nodes in parsed:
+        selected0 = {5*y for y in fibre}
+        excluded0 = {5*y for y in range(25)}-selected0
+        index = 0
+        def ap(pair):
+            if not isinstance(pair,list) or len(pair)!=2:
+                raise CertificateError('H0 AP pair')
+            a,d = [canonical_integer(x,'AP',0) for x in pair]
+            if a>=125 or not 1<=d<125:
+                raise CertificateError('H0 AP range')
+            return {(a+j*d)%125 for j in range(5)}
+        def visit(selected,excluded):
+            nonlocal index
+            if index>=len(nodes):
+                raise CertificateError('truncated H0 tree')
+            node = nodes[index]
+            index+=1
+            if not isinstance(node,dict):
+                raise CertificateError('H0 node must be object')
+            undecided = full-selected-excluded
+            op = node.get('op')
+            if op=='branch':
+                require_exact_keys(node,('op','j'),'H0 branch')
+                j = canonical_integer(node['j'],'j',0)
+                if j not in undecided:
+                    raise CertificateError('H0 branch violates fixed fibre')
+                visit(selected|{j},excluded)
+                visit(selected,excluded|{j})
+            elif op=='conflict':
+                require_exact_keys(node,('op','ap'),'H0 conflict')
+                if not ap(node['ap'])<=selected:
+                    raise CertificateError('forged H0 conflict')
+            elif op=='prune':
+                bound = node.get('bound')
+                if bound in ('coset','fibre'):
+                    require_exact_keys(node,('op','bound'),'H0 bound')
+                    parts,cap = (cosets,4) if bound=='coset' else (fibres,16)
+                    upper = len(selected)+sum(min(len(part&undecided),cap-len(part&selected)) for part in parts)
+                elif bound=='packing':
+                    require_exact_keys(node,('op','bound','aps'),'H0 packing')
+                    if not isinstance(node['aps'],list) or len(node['aps'])>125:
+                        raise CertificateError('H0 packing cap')
+                    occupied = set()
+                    for pair in node['aps']:
+                        edge = ap(pair)
+                        active = edge&undecided
+                        if edge&excluded or not active or edge&occupied:
+                            raise CertificateError('invalid H0 packing')
+                        occupied |= edge
+                    upper = len(selected)+len(undecided)-len(node['aps'])
+                else:
+                    raise CertificateError('unknown H0 bound')
+                if upper>maximum:
+                    raise CertificateError('invalid H0 prune bound')
+            else:
+                raise CertificateError('unknown H0 node')
+        visit(selected0,excluded0)
+        if index!=len(nodes):
+            raise CertificateError('unused H0 nodes')
+    return {'valid':True,'optimal':True,'max_cardinality':str(maximum)}
+
+
 def verify_certificate(certificate: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
     schema = certificate.get("schema") if isinstance(certificate, dict) else None
+    if schema == "erd169.quantized_block.v1":
+        return verify_quantized_block(certificate)
+    if schema == "erd169.rigidity.v2":
+        return verify_rigidity_v2(certificate, base_dir)
+    if schema == "erd169.cyclic_max.v1":
+        if certificate.get("mode") == "h0_orbit_bnb":
+            return verify_h0_cyclic_max(certificate,base_dir)
+        return verify_cyclic_max(certificate)
     if schema == "erd169.block_digit.v1":
         return verify_block_digit(certificate)
     if schema == "erd169.head_tail.v1":
