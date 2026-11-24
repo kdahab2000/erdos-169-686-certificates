@@ -1,0 +1,98 @@
+         241829620 function calls (232313339 primitive calls) in 43.946 seconds
+
+   Ordered by: cumulative time
+   List reduced from 310 to 45 due to restriction <45>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.002    0.002   44.293   44.293 standalone_verify.py:1556(main)
+      731    0.003    0.000   42.992    0.059 standalone_verify.py:1530(verify_entry)
+      731    0.002    0.000   41.422    0.057 standalone_verify.py:1489(verify_certificate)
+      384    0.043    0.000   24.537    0.064 standalone_verify.py:399(replay)
+705360/384    2.226    0.000   24.424    0.064 standalone_verify.py:466(visit)
+      192    0.002    0.000   16.932    0.088 standalone_verify.py:252(verify_prefix)
+   353643    6.522    0.000   14.578    0.000 standalone_verify.py:105(find_ap)
+      198    0.028    0.000   10.321    0.052 {built-in method builtins.next}
+ 30013053    4.156    0.000    9.387    0.000 {built-in method builtins.all}
+        2    0.000    0.000    4.833    2.416 standalone_verify.py:1058(verify_sieve_null)
+        2    2.642    1.321    4.832    2.416 standalone_verify.py:980(cubic_sieve_hits)
+   292138    1.254    0.000    4.724    0.000 standalone_verify.py:441(bound)
+ 89115554    4.692    0.000    4.692    0.000 standalone_verify.py:115(<genexpr>)
+      390    0.013    0.000    4.608    0.012 standalone_verify.py:239(resolve_digest)
+4534551/390    2.639    0.000    4.566    0.012 copy.py:128(deepcopy)
+353466/390    0.312    0.000    4.565    0.012 copy.py:227(_deepcopy_dict)
+830904/582    0.544    0.000    4.559    0.008 copy.py:201(_deepcopy_list)
+      103    0.001    0.000    4.194    0.041 standalone_verify.py:361(verify_686_null)
+      194    4.192    0.022    4.192    0.022 standalone_verify.py:324(box_hits)
+  3930432    1.651    0.000    2.531    0.000 standalone_verify.py:73(integer)
+     1466    0.002    0.000    2.206    0.002 standalone_verify.py:47(load_strict)
+     1467    0.002    0.000    2.040    0.001 __init__.py:299(loads)
+     1467    0.002    0.000    2.035    0.001 decoder.py:332(decode)
+     1467    1.685    0.001    2.032    0.001 decoder.py:343(raw_decode)
+        1    0.025    0.025    1.693    1.693 standalone_verify.py:895(verify_rigidity_v2)
+   586423    0.724    0.000    1.496    0.000 {built-in method builtins.sum}
+        1    0.000    0.000    1.269    1.269 contextlib.py:132(__enter__)
+        2    0.001    0.001    1.269    0.634 standalone_verify.py:220(digest_run)
+ 22860197    1.169    0.000    1.169    0.000 standalone_verify.py:989(<genexpr>)
+  1703002    0.557    0.000    1.114    0.000 {built-in method builtins.any}
+        4    0.000    0.000    0.938    0.234 standalone_verify.py:693(rigidity_candidates)
+3046874/4    0.919    0.000    0.937    0.234 standalone_verify.py:726(walk)
+  1468390    0.477    0.000    0.931    0.000 {built-in method builtins.min}
+        2    0.000    0.000    0.659    0.330 standalone_verify.py:852(verify_quantized_block)
+        2    0.659    0.330    0.659    0.330 standalone_verify.py:830(quantized_enclosure)
+     2287    0.268    0.000    0.553    0.000 standalone_verify.py:538(tail_compatible)
+ 11207883    0.549    0.000    0.549    0.000 {method 'get' of 'dict' objects}
+  9228460    0.486    0.000    0.486    0.000 standalone_verify.py:453(<genexpr>)
+  3932288    0.468    0.000    0.468    0.000 {method 'fullmatch' of 're.Pattern' objects}
+  7225194    0.454    0.000    0.454    0.000 standalone_verify.py:461(<genexpr>)
+     1466    0.001    0.000    0.441    0.000 standalone_verify.py:57(canonical_bytes)
+     1466    0.002    0.000    0.439    0.000 __init__.py:183(dumps)
+     1466    0.002    0.000    0.437    0.000 encoder.py:183(encode)
+     1466    0.433    0.000    0.433    0.000 encoder.py:205(iterencode)
+ 10467980    0.386    0.000    0.391    0.000 {built-in method builtins.isinstance}
+
+
+
+--- Tottime ---
+         241829620 function calls (232313339 primitive calls) in 43.946 seconds
+
+   Ordered by: internal time
+   List reduced from 310 to 35 due to restriction <35>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   353643    6.522    0.000   14.578    0.000 standalone_verify.py:105(find_ap)
+ 89115554    4.692    0.000    4.692    0.000 standalone_verify.py:115(<genexpr>)
+      194    4.192    0.022    4.192    0.022 standalone_verify.py:324(box_hits)
+ 30013053    4.156    0.000    9.387    0.000 {built-in method builtins.all}
+        2    2.642    1.321    4.832    2.416 standalone_verify.py:980(cubic_sieve_hits)
+4534551/390    2.639    0.000    4.566    0.012 copy.py:128(deepcopy)
+705360/384    2.226    0.000   24.424    0.064 standalone_verify.py:466(visit)
+     1467    1.685    0.001    2.032    0.001 decoder.py:343(raw_decode)
+  3930432    1.651    0.000    2.531    0.000 standalone_verify.py:73(integer)
+   292138    1.254    0.000    4.724    0.000 standalone_verify.py:441(bound)
+ 22860197    1.169    0.000    1.169    0.000 standalone_verify.py:989(<genexpr>)
+3046874/4    0.919    0.000    0.937    0.234 standalone_verify.py:726(walk)
+   586423    0.724    0.000    1.496    0.000 {built-in method builtins.sum}
+        2    0.659    0.330    0.659    0.330 standalone_verify.py:830(quantized_enclosure)
+  1703002    0.557    0.000    1.114    0.000 {built-in method builtins.any}
+ 11207883    0.549    0.000    0.549    0.000 {method 'get' of 'dict' objects}
+830904/582    0.544    0.000    4.559    0.008 copy.py:201(_deepcopy_list)
+  9228460    0.486    0.000    0.486    0.000 standalone_verify.py:453(<genexpr>)
+  1468390    0.477    0.000    0.931    0.000 {built-in method builtins.min}
+  3932288    0.468    0.000    0.468    0.000 {method 'fullmatch' of 're.Pattern' objects}
+  7225194    0.454    0.000    0.454    0.000 standalone_verify.py:461(<genexpr>)
+     1466    0.433    0.000    0.433    0.000 encoder.py:205(iterencode)
+  7385598    0.388    0.000    0.388    0.000 standalone_verify.py:462(<genexpr>)
+ 10467980    0.386    0.000    0.391    0.000 {built-in method builtins.isinstance}
+   822077    0.347    0.000    0.347    0.000 standalone_verify.py:30(_pairs)
+353466/390    0.312    0.000    4.565    0.012 copy.py:227(_deepcopy_dict)
+     4325    0.309    0.000    0.310    0.000 standalone_verify.py:737(rigidity_head_terms)
+     2287    0.268    0.000    0.553    0.000 standalone_verify.py:538(tail_compatible)
+  6903681    0.229    0.000    0.229    0.000 {built-in method builtins.id}
+  1184370    0.210    0.000    0.284    0.000 copy.py:243(_keep_alive)
+  5063653    0.179    0.000    0.179    0.000 {method 'append' of 'list' objects}
+   763770    0.163    0.000    0.163    0.000 standalone_verify.py:84(exact_keys)
+  4120846    0.133    0.000    0.133    0.000 {method 'bit_length' of 'int' objects}
+  3350181    0.120    0.000    0.120    0.000 copy.py:182(_deepcopy_atomic)
+     1467    0.116    0.000    0.122    0.000 {method 'read' of '_io.TextIOWrapper' objects}
+
+

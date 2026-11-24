@@ -41,3 +41,9 @@ This file records failure modes that must be checked before any #169 or #686 cla
 - Positive-rank cubic curves give no infinite integral nonexistence claim.
 - Existing higher-k sweeps are reused benchmarks, not newly rerun or infinite nulls.
 - OEIS b-files need at least 20 extra terms; allocations are user supplied.
+
+## Campaign 6 integrity and scope
+
+- Run-scoped verification memoization lives inside `_DIGEST_INDEX` only, stores results only after success, returns deep copies, and clears on exit.
+- `verify_entry` re-reads raw bytes on every call and reuses the `digest_run` parsed object only when `(resolved_path, raw_sha256)` matches.
+- Z/125Z Gate G1 failure (`projected_total_nodes = null`) leaves `64 <= maximum <= 80` unresolved; no unapproved v3 schema or maximum certificate is emitted.

@@ -1,0 +1,27 @@
+{
+  "MANIFEST.json": [
+    {
+      "run": 1,
+      "elapsed_ns": "7464351084",
+      "returncode": 0,
+      "under_10s": true
+    },
+    {
+      "run": 2,
+      "elapsed_ns": "7207521708",
+      "returncode": 0,
+      "under_10s": true
+    },
+    {
+      "run": 3,
+      "elapsed_ns": "7533085583",
+      "returncode": 0,
+      "under_10s": true
+    }
+  ],
+  "MANIFEST_DEEP.json": {
+    "elapsed_ns": "29965274000",
+    "returncode": 0
+  },
+  "all_default_under_10s": true
+}

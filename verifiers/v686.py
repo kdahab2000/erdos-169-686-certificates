@@ -182,14 +182,25 @@ def cubic_sieve_hits(s, lo, hi):
     for modulus in moduli:
         image = {(x*x*x-x)%modulus for x in range(modulus)}
         allowed.append(bytearray(s*s*(y*y*y-y)%modulus in image for y in range(modulus)))
-    for n in range(lo,hi+1):
-        y = n+2
-        if not all(table[y%modulus] for modulus,table in zip(moduli,allowed)):
-            continue
-        target = s*s*(y*y*y-y)
-        x = icbrt(target)+1
-        if x*x*x-x == target and x-2 >= n+3:
-            yield 3,n,x-2
+    m0, m1, m2 = moduli
+    t0, t1, t2 = allowed
+    good0 = [r for r in range(m0) if t0[r]]
+    y_lo = lo + 2
+    y_hi = hi + 2
+    base = y_lo - (y_lo % m0)
+    while base <= y_hi:
+        for r in good0:
+            y = base + r
+            if y < y_lo:
+                continue
+            if y > y_hi:
+                break
+            if t1[y % m1] and t2[y % m2]:
+                target = s*s*(y*y*y-y)
+                x = icbrt(target)+1
+                if x*x*x-x == target and x-2 >= y+1:
+                    yield 3,y-2,x-2
+        base += m0
 
 
 def prime_power_sieve_hits(s, k_lo, k_hi, lo, hi, survivor_cap=200000):

@@ -45,9 +45,9 @@ candidate separately passes tail_compatible, the count is even, and reflection
 closure holds. The equivalence proof is in docs/CAMPAIGN3_AUTOMATON.md.
 The list and methodology are in benchmarks/head_candidates_L9.json.
 
-Finite reciprocal maxima g_k(n) are existing certified prefix results, with
-36,36,60,60 terms respectively for k=3,4,5,6. These are not values of the
-infinite f(k). The nine OEIS drafts separate reduced numerators and denominators
+Finite reciprocal maxima g_k(n) are certified prefix optima, with
+40,40,60,60 terms respectively for k=3,4,5,6 (200 exact values total). These are not values of the
+infinite f(k). The 13 offline OEIS draft files separate reduced numerators and denominators
 with b-files only when they add at least 20 terms beyond DATA. The g_3 greedy values differ from optimum at n=9
 (143/72 versus 39/20) and n=24 (6059/2640 versus 45831/20020).
 Attribution to Wroblewski remains withheld pending a source check.
@@ -64,10 +64,10 @@ L=7,8 punctures and additions outside A(L) remain unexamined here.
 
 The Z/25Z cyclic maximum is exactly 16 (`c4_z25_max.json`). Five disjoint
 Z25 fibres give a Z/125Z upper bound of 80, and an AP-free witness has size 64.
-Thus 64≤maximum≤80 remains unresolved. The first Campaign 5 16-point-fibre
-orbit exceeded 20 seconds at 76083 nodes. No maximum certificate was emitted.
-The v2 verifier adds force, dominance and active-set packing; positive tests
-exercise a synthetic node engine, not a complete Z125 certificate.
+Thus 64≤maximum≤80 remains unresolved. In Campaign 6, `solvers/z125_fibre.py`
+measured mask 507375 (|H0|=16) and mask 48623 (first |H0|=13) under `current`,
+`h1_first`, and `ap_interleave` with 5-second budgets; all six runs exceeded
+the time budget without closing (Gate G1 failed). No maximum certificate was emitted.
 
 ## Reproducibility and release state
 
@@ -106,9 +106,10 @@ No infinite k=3 exclusion is claimed for s=2 or s=5. The supplied
 positive-rank context is not a certified integral-point classification.
 Existing higher-k scans are retained as digest-bound benchmark evidence.
 
-Certified prefixes g₃,g₄ reach 36; g₅,g₆ reach 60 (192 values total).
+Certified prefixes g₃,g₄ reach 40; g₅,g₆ reach 60 (200 values total).
 OEIS identifiers A402682/A402683/A402684 are user supplied, not checked online.
 The drafts are local, with b-files only when at least 20 extra terms exist.
-All legacy certificate bytes remain unchanged. See CAMPAIGN5_CHECKS for
-actual validation and unresolved gates. User trial and explicit approval
-remain prerequisites to release; Relay cannot deploy.
+All 733 pre-Campaign-6 certificate bytes remain unchanged; Campaign 6 adds 24 prefix
+certificates (755 default, 2 deep) with standalone replay under 10s (7.21–7.53s).
+See CAMPAIGN6_CHECKS for actual validation and unresolved Z/125Z Gate G1 status.
+User trial and explicit approval remain prerequisites to release; Relay cannot deploy.

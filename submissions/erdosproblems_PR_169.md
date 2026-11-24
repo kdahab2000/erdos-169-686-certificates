@@ -70,16 +70,17 @@ Before posting, the user must check novelty, review the page and patch schema,
 choose public artifact hosting, try the local package, and explicitly approve
 publication. Relay cannot deploy. This file sends no messages.
 
-## Campaign 5 alignment for local review
+## Campaign 6 alignment for local review
 
-The contiguous certified prefix endpoints are 36,36,60,60 for k=3,4,5,6
-(192 exact optima). The Z/25Z cyclic maximum is 16; Z/125Z remains between
-64 and 80. No Z/125Z maximum theorem is offered: the measurement gate failed.
-The certified infinite-domain square atlas covers s=2…100 at k∈{2,4}:
-24 k=2 witnesses, zero k=4 positives, 75 roots with neither. The new Pell
-batch gives 969 explicit nonsquare k=2 witnesses in [2,1000], certifying
+The contiguous certified prefix endpoints are 40,40,60,60 for k=3,4,5,6
+(200 exact optima), with all 755 default-manifest entries verifying standalone
+in 7.21–7.53 seconds (<10s gate). The Z/25Z cyclic maximum is 16; Z/125Z remains
+unresolved between 64 and 80 (Campaign 6 `z125_fibre.py` Gate G1 measurement failed;
+no maximum certificate emitted). The certified infinite-domain square atlas covers
+s=2…100 at k∈{2,4}: 24 k=2 witnesses, zero k=4 positives, 75 roots with neither.
+The Pell batch gives 969 explicit nonsquare k=2 witnesses in [2,1000], certifying
 instances of the classical general nonsquare theorem. The family s=4t+2,
 t≥2, has n=t−1,m=4t²+4t−1; s=99 has n=1,m=241.
-No infinite k=3 null is claimed for s=2 or s=5. Consult the atlas and
-campaign5_results.json for certificate references; prior higher-k scan boxes
-are benchmark evidence only. This text has not been posted or sent.
+No infinite k=3 null is claimed for s=2 or s=5. Consult the atlas,
+campaign6_results.json, and docs/CAMPAIGN6_CHECKS.md for certificate references;
+prior higher-k scan boxes are benchmark evidence only. This text has not been posted or sent.

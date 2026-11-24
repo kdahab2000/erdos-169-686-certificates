@@ -222,31 +222,61 @@ def digest_run(base_dir):
     """Snapshot canonical content for this replay only; never cache across runs."""
     root = Path(base_dir).resolve()
     index = {}
+    by_path = {}
     for path in sorted(root.glob("*.json")):
         try:
-            path.resolve().relative_to(root)
-            obj = load_strict(path)
+            resolved = path.resolve()
+            resolved.relative_to(root)
+            raw_bytes = path.read_bytes()
+            obj = json.loads(
+                raw_bytes.decode("utf-8"),
+                object_pairs_hook=_pairs,
+                parse_float=_no_float,
+                parse_constant=_no_float,
+                parse_int=_no_int,
+            )
         except (OSError, ValueError):
             continue
-        index[hashlib.sha256(canonical_bytes(obj)).hexdigest()] = obj
-    token = _DIGEST_INDEX.set((root, index))
+        canon_sha = hashlib.sha256(canonical_bytes(obj)).hexdigest()
+        index[canon_sha] = obj
+        if isinstance(obj, dict):
+            raw_sha = hashlib.sha256(raw_bytes).hexdigest()
+            by_path[resolved] = (raw_sha, canon_sha, obj)
+    token = _DIGEST_INDEX.set((root, index, by_path, {}))
     try:
         yield
     finally:
         _DIGEST_INDEX.reset(token)
 
 
-def resolve_digest(digest, base_dir):
+def _resolve_readonly(digest, base_dir):
     if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
         raise BadCertificate("invalid reference digest")
     root = Path(base_dir).resolve()
     active = _DIGEST_INDEX.get()
     if active is None or active[0] != root:
         with digest_run(root):
-            return resolve_digest(digest, root)
+            return _resolve_readonly(digest, root)
     if digest not in active[1]:
         raise BadCertificate("reference digest not found in certificate directory")
-    return copy.deepcopy(active[1][digest])
+    return active[1][digest]
+
+
+def resolve_digest(digest, base_dir):
+    return copy.deepcopy(_resolve_readonly(digest, base_dir))
+
+
+def _memo_verify(schema, canon_sha, fn, *args):
+    active = _DIGEST_INDEX.get()
+    if active is None or not canon_sha:
+        return fn(*args)
+    memo = active[3]
+    key = ("standalone", schema, canon_sha)
+    if key in memo:
+        return copy.deepcopy(memo[key])
+    res = fn(*args)
+    memo[key] = copy.deepcopy(res)
+    return res
 
 
 def verify_prefix(cert, base_dir=None):
@@ -259,12 +289,14 @@ def verify_prefix(cert, base_dir=None):
         raise BadCertificate("empty tie policy")
     if base_dir is None:
         raise BadCertificate("prefix verification requires certificate directory")
-    witness = resolve_digest(cert["witness_sha256"], base_dir)
-    proof = resolve_digest(cert["proof_sha256"], base_dir)
+    witness_sha = cert["witness_sha256"]
+    proof_sha = cert["proof_sha256"]
+    witness = _resolve_readonly(witness_sha, base_dir)
+    proof = _resolve_readonly(proof_sha, base_dir)
     if not isinstance(witness, dict) or not isinstance(proof, dict):
         raise BadCertificate("prefix evidence must be objects")
-    verify_finite(witness)
-    replay(proof)
+    _memo_verify("erd169.finite.v1", witness_sha, verify_finite, witness)
+    _memo_verify("erd169.bnb.v1", proof_sha, replay, proof)
     for key in ("k", "N"):
         if witness[key] != cert[key] or proof[key] != cert[key]:
             raise BadCertificate("prefix k/N mismatch")
@@ -425,49 +457,64 @@ def replay(proof: Mapping[str, Any]) -> Dict[str, Any]:
     incumbent = integer(proof["incumbent_weight"], "incumbent_weight", 0)
     if incumbent != weight:
         raise BadCertificate("incumbent mismatch")
-    progressions: List[Tuple[int, int, Tuple[int, ...]]] = []
+    progressions: List[Tuple[int, int, int]] = []
+    incidence: List[List[int]] = [[] for _ in range(n + 1)]
     for start in range(1, n + 1):
         for difference in range(1, (n - start) // (k - 1) + 1):
-            progressions.append(
-                (start, difference, tuple(start + i * difference for i in range(k)))
-            )
-    by_key = {(a, b): terms for a, b, terms in progressions}
+            mask = 0
+            for i in range(k):
+                mask |= 1 << (start + i * difference - 1)
+            progressions.append((start, difference, mask))
+            for i in range(k):
+                incidence[start + i * difference].append(mask)
+    by_key = {(a, b): mask for a, b, mask in progressions}
     nodes = proof["tree"]
     if not isinstance(nodes, list) or not nodes or len(nodes) > 2000000:
         raise BadCertificate("empty proof tree")
-    visited: Set[int] = set()
+    weights = [common // value for value in range(1, n + 1)]
+    total_weight = sum(weights)
+    full = (1 << n) - 1
+    visited = bytearray(len(nodes))
+    visited_count = 0
     best = -1
 
     def bound(
-        selected: Set[int],
-        excluded: Set[int],
-        undecided: Set[int],
+        excluded: int,
+        undecided: int,
+        sel_weight: int,
+        und_weight: int,
         pairs: List[Tuple[int, int]],
     ) -> int:
-        occupied: Set[int] = set()
+        occupied = 0
         deduction = 0
         for start, difference in pairs:
-            terms = by_key.get((start, difference))
-            if terms is None:
+            mask = by_key.get((start, difference))
+            if mask is None:
                 raise BadCertificate("unknown progression")
-            if any(value in excluded for value in terms):
+            if mask & excluded:
                 raise BadCertificate("inactive progression")
-            active = set(terms) & undecided
+            active = mask & undecided
             if not active:
                 raise BadCertificate("progression has no undecided member")
             if occupied & active:
                 raise BadCertificate("overlapping progression deductions")
             occupied |= active
-            deduction += min(common // value for value in active)
-        return sum(common // value for value in selected) + sum(
-            common // value for value in undecided
-        ) - deduction
+            deduction += weights[active.bit_length() - 1]
+        return sel_weight + und_weight - deduction
 
-    def visit(index: int, selected: Set[int], excluded: Set[int]) -> None:
-        nonlocal best
-        if index in visited or index < 0 or index >= len(nodes):
+    def visit(
+        index: int,
+        selected: int,
+        excluded: int,
+        sel_weight: int,
+        und_weight: int,
+        has_ap: bool,
+    ) -> None:
+        nonlocal best, visited_count
+        if index < 0 or index >= len(nodes) or visited[index]:
             raise BadCertificate("invalid/cyclic proof child")
-        visited.add(index)
+        visited[index] = 1
+        visited_count += 1
         node = nodes[index]
         if not isinstance(node, dict):
             raise BadCertificate("proof node is not an object")
@@ -475,17 +522,23 @@ def replay(proof: Mapping[str, Any]) -> Dict[str, Any]:
         if operation == "branch":
             exact_keys(node, ("op", "j", "include", "exclude"), "branch")
             member = integer(node["j"], "j", 1)
-            if member > n or member in selected or member in excluded:
+            if member > n:
+                raise BadCertificate("branch on non-undecided member")
+            member_bit = 1 << (member - 1)
+            if (selected | excluded) & member_bit:
                 raise BadCertificate("branch on non-undecided member")
             include = integer(node["include"], "include", 0)
             exclude = integer(node["exclude"], "exclude", 0)
-            visit(include, selected | {member}, excluded)
-            visit(exclude, selected, excluded | {member})
+            w = weights[member - 1]
+            new_sel = selected | member_bit
+            new_has_ap = has_ap or any((m & new_sel) == m for m in incidence[member])
+            visit(include, new_sel, excluded, sel_weight + w, und_weight - w, new_has_ap)
+            visit(exclude, selected, excluded | member_bit, sel_weight, und_weight - w, has_ap)
         elif operation == "prune":
             exact_keys(node, ("op", "aps"), "prune")
-            if find_ap(selected, k) is not None:
+            if has_ap:
                 raise BadCertificate("invalid selected state")
-            undecided = set(range(1, n + 1)) - selected - excluded
+            undecided = full ^ (selected | excluded)
             pairs: List[Tuple[int, int]] = []
             if not isinstance(node["aps"], list):
                 raise BadCertificate("aps is not an array")
@@ -495,26 +548,26 @@ def replay(proof: Mapping[str, Any]) -> Dict[str, Any]:
                 pairs.append(
                     (integer(item[0], "start", 1), integer(item[1], "difference", 1))
                 )
-            if bound(selected, excluded, undecided, pairs) > incumbent:
+            if bound(excluded, undecided, sel_weight, und_weight, pairs) > incumbent:
                 raise BadCertificate("invalid prune bound")
         elif operation == "leaf":
             exact_keys(node, ("op", "status"), "leaf")
             if node["status"] == "feasible":
-                if set(range(1, n + 1)) - selected - excluded:
+                if full ^ (selected | excluded):
                     raise BadCertificate("feasible leaf leaves integers undecided")
-                if find_ap(selected, k) is not None:
+                if has_ap:
                     raise BadCertificate("invalid feasible leaf")
-                best = max(best, sum(common // value for value in selected))
+                best = max(best, sel_weight)
             elif node["status"] == "infeasible":
-                if find_ap(selected, k) is None:
+                if not has_ap:
                     raise BadCertificate("infeasible leaf has no AP")
             else:
                 raise BadCertificate("unknown leaf status")
         else:
             raise BadCertificate("unknown proof operation")
 
-    visit(0, set(), set())
-    if visited != set(range(len(nodes))):
+    visit(0, 0, 0, 0, total_weight, False)
+    if visited_count != len(nodes):
         raise BadCertificate("unreachable proof nodes")
     if best < 0 or best > incumbent:
         raise BadCertificate("proof does not certify the incumbent")
@@ -682,8 +735,8 @@ def verify_head_tail(cert, base_dir=None):
         raise BadCertificate("delta mismatch")
     if base_dir is None:
         raise BadCertificate("pure reference requires certificate directory")
-    ref = resolve_digest(cert["pure_ref_sha256"], base_dir)
-    verify_block_digit(ref)
+    ref = _resolve_readonly(cert["pure_ref_sha256"], base_dir)
+    _memo_verify("erd169.block_digit.v1", cert["pure_ref_sha256"], verify_block_digit, ref)
     if ref["p"] != "5" or ref["block_len"] != "1" or ref["D"] != cert["D"] or ref["s"] != cert["s"]:
         raise BadCertificate("pure reference mismatch")
     return {"valid": True, "delta": rational_object(delta)}
@@ -760,8 +813,8 @@ def verify_rigidity(cert, base_dir=None):
     margin = fraction_obj(cert["min_nonempty_loss"],"min_nonempty_loss")
     if base_dir is None:
         raise BadCertificate("pure reference requires directory")
-    ref = resolve_digest(cert["pure_ref_sha256"],base_dir)
-    verify_block_digit(ref)
+    ref = _resolve_readonly(cert["pure_ref_sha256"],base_dir)
+    _memo_verify("erd169.block_digit.v1", cert["pure_ref_sha256"], verify_block_digit, ref)
     if ref["p"]!="5" or ref["k"]!="5" or ref["block_len"]!="1" or ref["s"]!="1" or ref["D"]!=cert["D"]:
         raise BadCertificate("pure reference mismatch")
     if not isinstance(cert["dual_arcs"],list) or len(cert["dual_arcs"])>100000:
@@ -914,8 +967,8 @@ def verify_rigidity_v2(cert, base_dir=None):
     margin = fraction_obj(cert["min_nonempty_loss"],"min_nonempty_loss")
     if base_dir is None:
         raise BadCertificate("pure reference requires directory")
-    ref = resolve_digest(cert["pure_ref_sha256"],base_dir)
-    verify_block_digit(ref)
+    ref = _resolve_readonly(cert["pure_ref_sha256"],base_dir)
+    _memo_verify("erd169.block_digit.v1", cert["pure_ref_sha256"], verify_block_digit, ref)
     if ref["p"]!="5" or ref["k"]!="5" or ref["block_len"]!="1" or ref["s"]!="1" or ref["D"]!=cert["D"]:
         raise BadCertificate("pure reference mismatch")
     if not isinstance(cert["dual_arcs"],list) or len(cert["dual_arcs"])>100000:
@@ -984,14 +1037,25 @@ def cubic_sieve_hits(s, lo, hi):
     for modulus in moduli:
         image = {(x*x*x-x)%modulus for x in range(modulus)}
         allowed.append(bytearray(s*s*(y*y*y-y)%modulus in image for y in range(modulus)))
-    for n in range(lo,hi+1):
-        y = n+2
-        if not all(table[y%modulus] for modulus,table in zip(moduli,allowed)):
-            continue
-        target = s*s*(y*y*y-y)
-        x = icbrt(target)+1
-        if x*x*x-x == target and x-2 >= n+3:
-            yield 3,n,x-2
+    m0, m1, m2 = moduli
+    t0, t1, t2 = allowed
+    good0 = [r for r in range(m0) if t0[r]]
+    y_lo = lo + 2
+    y_hi = hi + 2
+    base = y_lo - (y_lo % m0)
+    while base <= y_hi:
+        for r in good0:
+            y = base + r
+            if y < y_lo:
+                continue
+            if y > y_hi:
+                break
+            if t1[y % m1] and t2[y % m2]:
+                target = s*s*(y*y*y-y)
+                x = icbrt(target)+1
+                if x*x*x-x == target and x-2 >= y+1:
+                    yield 3,y-2,x-2
+        base += m0
 
 
 def prime_power_sieve_hits(s, k_lo, k_hi, lo, hi, survivor_cap=200000):
@@ -1215,8 +1279,8 @@ def verify_h0_cyclic_max(cert,base_dir):
             raise BadCertificate('H0 total node cap')
     if base_dir is None:
         raise BadCertificate('H0 reference requires directory')
-    ref = resolve_digest(proof['z25_ref_sha256'],base_dir)
-    verify_cyclic_max(ref)
+    ref = _resolve_readonly(proof['z25_ref_sha256'],base_dir)
+    _memo_verify("erd169.cyclic_max.v1", proof['z25_ref_sha256'], verify_cyclic_max, ref)
     if ref['modulus']!='25' or ref['max_cardinality']!='16':
         raise BadCertificate('H0 requires Z25 maximum 16')
     edges = cyclic_progressions(125)
@@ -1417,8 +1481,8 @@ def verify_h0_cyclic_max_v2(cert,base_dir):
             raise BadCertificate('H0 total node cap')
     if base_dir is None:
         raise BadCertificate('H0 reference requires directory')
-    ref = resolve_digest(proof['z25_ref_sha256'],base_dir)
-    verify_cyclic_max(ref)
+    ref = _resolve_readonly(proof['z25_ref_sha256'],base_dir)
+    _memo_verify("erd169.cyclic_max.v1", proof['z25_ref_sha256'], verify_cyclic_max, ref)
     if ref['modulus']!='25' or ref['max_cardinality']!='16':
         raise BadCertificate('H0 requires Z25 maximum 16')
     edges = cyclic_progressions(125)
@@ -1486,45 +1550,59 @@ def verify_pell_batch(cert):
             'novelty_tags':['NONSQUARE_PELL_KNOWN']}
 
 
-def verify_certificate(cert: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
-    """Verify one standalone certificate and return a structured result."""
+def _verify_certificate_with_digest(
+    cert: Mapping[str, Any], base_dir=None, canon_digest: Optional[str] = None
+) -> Dict[str, Any]:
+    """Verify one standalone certificate, optionally memoized inside an active digest_run."""
 
     if not isinstance(cert, dict):
         raise BadCertificate("certificate is not an object")
     schema = cert.get("schema")
+    active = _DIGEST_INDEX.get()
+    same_root = (
+        active is not None
+        and base_dir is not None
+        and active[0] == Path(base_dir).resolve()
+    )
     if schema == "erd686.pell_batch.v1":
-        return verify_pell_batch(cert)
+        return _memo_verify(schema, canon_digest, verify_pell_batch, cert)
     if schema == "erd169.quantized_block.v1":
-        return verify_quantized_block(cert)
+        return _memo_verify(schema, canon_digest, verify_quantized_block, cert)
     if schema == "erd169.rigidity.v2":
-        return verify_rigidity_v2(cert, base_dir)
+        return _memo_verify(schema, canon_digest if same_root else None, verify_rigidity_v2, cert, base_dir)
     if schema == "erd169.cyclic_max.v2":
-        return verify_h0_cyclic_max_v2(cert,base_dir)
+        return _memo_verify(schema, canon_digest if same_root else None, verify_h0_cyclic_max_v2, cert, base_dir)
     if schema == "erd169.cyclic_max.v1":
         if cert.get("mode") == "h0_orbit_bnb":
-            return verify_h0_cyclic_max(cert,base_dir)
-        return verify_cyclic_max(cert)
+            return _memo_verify("erd169.cyclic_max.v1:h0", canon_digest if same_root else None, verify_h0_cyclic_max, cert, base_dir)
+        return _memo_verify(schema, canon_digest, verify_cyclic_max, cert)
     if schema == "erd169.block_digit.v1":
-        return verify_block_digit(cert)
+        return _memo_verify(schema, canon_digest, verify_block_digit, cert)
     if schema == "erd169.head_tail.v1":
-        return verify_head_tail(cert, base_dir)
+        return _memo_verify(schema, canon_digest if same_root else None, verify_head_tail, cert, base_dir)
     if schema == "erd169.rigidity.v1":
-        return verify_rigidity(cert, base_dir)
+        return _memo_verify(schema, canon_digest if same_root else None, verify_rigidity, cert, base_dir)
     if schema == "erd169.bnb.v1":
-        return replay(cert)
+        return _memo_verify(schema, canon_digest, replay, cert)
     if schema == "erd169.finite.v1":
-        return verify_finite(cert)
+        return _memo_verify(schema, canon_digest, verify_finite, cert)
     if schema == "erd169.digitset.v1":
-        return verify_digitset(cert)
+        return _memo_verify(schema, canon_digest, verify_digitset, cert)
     if schema == "erd169.prefix_opt.v1":
-        return verify_prefix(cert, base_dir)
+        return _memo_verify(schema, canon_digest if same_root else None, verify_prefix, cert, base_dir)
     if schema == "erd686.sieve_null.v1":
-        return verify_sieve_null(cert)
+        return _memo_verify(schema, canon_digest, verify_sieve_null, cert)
     if schema == "erd686.rep.v1":
-        return verify_686_rep(cert)
+        return _memo_verify(schema, canon_digest, verify_686_rep, cert)
     if schema == "erd686.null.v1":
-        return verify_686_null(cert)
+        return _memo_verify(schema, canon_digest, verify_686_null, cert)
     raise BadCertificate(f"unsupported schema {schema!r}")
+
+
+def verify_certificate(cert: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
+    """Verify one standalone certificate and return a structured result."""
+
+    return _verify_certificate_with_digest(cert, base_dir, None)
 
 
 def verify_entry(entry: Mapping[str, Any], base_dir: Path) -> Dict[str, Any]:
@@ -1533,22 +1611,35 @@ def verify_entry(entry: Mapping[str, Any], base_dir: Path) -> Dict[str, Any]:
     path_value = entry.get("path")
     if not isinstance(path_value, str):
         return {"valid": False, "error": "manifest entry has no path"}
+    root = base_dir.resolve()
     path = (base_dir / path_value).resolve()
     try:
-        path.relative_to(base_dir.resolve())
+        path.relative_to(root)
     except ValueError:
         return {"valid": False, "error": "path escapes certificate directory"}
     expected_digest = entry.get("sha256")
     if not isinstance(expected_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_digest):
         return {"valid": False, "error": "manifest entry has no valid sha256"}
     try:
-        cert = load_strict(path)
-        if not isinstance(cert, dict):
-            raise BadCertificate("certificate is not an object")
-        actual_digest = hashlib.sha256(canonical_bytes(cert)).hexdigest()
+        raw_bytes = path.read_bytes()
+        raw_sha = hashlib.sha256(raw_bytes).hexdigest()
+        active = _DIGEST_INDEX.get()
+        if active is not None and active[0] == root and path in active[2] and active[2][path][0] == raw_sha:
+            _, actual_digest, cert = active[2][path]
+        else:
+            cert = json.loads(
+                raw_bytes.decode("utf-8"),
+                object_pairs_hook=_pairs,
+                parse_float=_no_float,
+                parse_constant=_no_float,
+                parse_int=_no_int,
+            )
+            if not isinstance(cert, dict):
+                raise BadCertificate("certificate is not an object")
+            actual_digest = hashlib.sha256(canonical_bytes(cert)).hexdigest()
         if actual_digest != expected_digest:
             return {"valid": False, "error": "certificate sha256 mismatch"}
-        return verify_certificate(cert, base_dir)
+        return _verify_certificate_with_digest(cert, base_dir, actual_digest)
     except (OSError, json.JSONDecodeError, BadCertificate, ValueError) as exc:
         return {"valid": False, "error": str(exc)}
 

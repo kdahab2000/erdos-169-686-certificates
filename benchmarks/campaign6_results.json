@@ -1,0 +1,112 @@
+{
+  "scope": "ERD-106 Campaign 6 local research artifact; Z/125Z Gate G1 failed (64 <= M <= 80); no release",
+  "status": "CHANGES",
+  "legacy_files": 733,
+  "new_certificates": 24,
+  "manifest_entries": {
+    "MANIFEST.json": 755,
+    "MANIFEST_DEEP.json": 2
+  },
+  "prefix_endpoints": {
+    "3": 40,
+    "4": 40,
+    "5": 60,
+    "6": 60
+  },
+  "prefix_rows": 200,
+  "oeis_file_count": 13,
+  "z125": {
+    "closed": false,
+    "claim": "none",
+    "gate_g1_passed": false,
+    "bounds": {
+      "lower": 64,
+      "upper": 80
+    },
+    "measurements": [
+      {
+        "mask": "507375",
+        "fibre_size": 16,
+        "strategy": "current",
+        "status": "budget exceeded",
+        "nodes": 54486,
+        "bytes": 0,
+        "elapsed_ns": "5000239208"
+      },
+      {
+        "mask": "507375",
+        "fibre_size": 16,
+        "strategy": "h1_first",
+        "status": "budget exceeded",
+        "nodes": 111785,
+        "bytes": 0,
+        "elapsed_ns": "5000754459"
+      },
+      {
+        "mask": "507375",
+        "fibre_size": 16,
+        "strategy": "ap_interleave",
+        "status": "budget exceeded",
+        "nodes": 36084,
+        "bytes": 0,
+        "elapsed_ns": "5000172959"
+      },
+      {
+        "mask": "48623",
+        "fibre_size": 13,
+        "strategy": "current",
+        "status": "budget exceeded",
+        "nodes": 43598,
+        "bytes": 0,
+        "elapsed_ns": "5000331041"
+      },
+      {
+        "mask": "48623",
+        "fibre_size": 13,
+        "strategy": "h1_first",
+        "status": "budget exceeded",
+        "nodes": 33254,
+        "bytes": 0,
+        "elapsed_ns": "5000176750"
+      },
+      {
+        "mask": "48623",
+        "fibre_size": 13,
+        "strategy": "ap_interleave",
+        "status": "budget exceeded",
+        "nodes": 30644,
+        "bytes": 0,
+        "elapsed_ns": "5000389709"
+      }
+    ]
+  },
+  "timings": {
+    "MANIFEST.json": [
+      {
+        "run": 1,
+        "elapsed_ns": "7464351084",
+        "returncode": 0,
+        "under_10s": true
+      },
+      {
+        "run": 2,
+        "elapsed_ns": "7207521708",
+        "returncode": 0,
+        "under_10s": true
+      },
+      {
+        "run": 3,
+        "elapsed_ns": "7533085583",
+        "returncode": 0,
+        "under_10s": true
+      }
+    ],
+    "MANIFEST_DEEP.json": {
+      "elapsed_ns": "29965274000",
+      "returncode": 0
+    },
+    "all_default_under_10s": true
+  },
+  "default_under_10s": true,
+  "release": "User trial and explicit approval required; Relay cannot deploy."
+}

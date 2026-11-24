@@ -8,7 +8,7 @@ OFFSET
 1,2
 
 COMMENTS
-g_4(n) is the maximum of sum(1/a for a in S) over all 4-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. All 36 terms are backed by finite optimization proof replays.
+g_4(n) is the maximum of sum(1/a for a in S) over all 4-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. All 40 terms are backed by finite optimization proof replays.
 
 EXAMPLE
 For n=1, g_4(1)=1, so a(1)=1.

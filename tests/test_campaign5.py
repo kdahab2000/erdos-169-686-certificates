@@ -13,12 +13,14 @@ class Campaign5Tests(unittest.TestCase):
         self.assertEqual(len(baseline['raw_sha256']),563)
         for path,digest in baseline['raw_sha256'].items():
             self.assertEqual(hashlib.sha256((Path('certificates')/path).read_bytes()).hexdigest(),digest,path)
+        c5_counts=json.loads(Path('benchmarks/campaign5_results.json').read_text())['manifest_entries']
         all_entries=[]
         for name,old in baseline['manifests'].items():
             entries=json.loads((Path('certificates')/name).read_text())['certificates']
             self.assertEqual(entries[:len(old)],old)
-            self.assertTrue(all(e['path'].startswith('c5_') or e['path'].startswith('deep/c5_') for e in entries[len(old):]))
-            all_entries.extend(entries)
+            c5_end=c5_counts[name]
+            self.assertTrue(all(e['path'].startswith('c5_') or e['path'].startswith('deep/c5_') for e in entries[len(old):c5_end]))
+            all_entries.extend(entries[:c5_end])
         old_entries=[e for entries in baseline['manifests'].values() for e in entries]
         old_hashes={e['sha256'] for e in old_entries}
         new_entries=[e for e in all_entries if e['path'] not in baseline['raw_sha256']]

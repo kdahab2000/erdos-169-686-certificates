@@ -1,0 +1,8 @@
+k=3 N=37 complete=True nodes=1063 solve_ns=24729209
+k=3 N=38 complete=True nodes=925 solve_ns=25829459
+k=3 N=39 complete=True nodes=1121 solve_ns=31105417
+k=3 N=40 complete=True nodes=1007 solve_ns=30899667
+k=4 N=37 complete=True nodes=1095 solve_ns=23053084
+k=4 N=38 complete=True nodes=1629 solve_ns=34108250
+k=4 N=39 complete=True nodes=2527 solve_ns=53244666
+k=4 N=40 complete=True nodes=3689 solve_ns=75983750
