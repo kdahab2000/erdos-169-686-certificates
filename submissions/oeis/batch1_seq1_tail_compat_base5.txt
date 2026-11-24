@@ -1,0 +1,68 @@
+NAME
+Number of positive integers a <= 5^L outside 1 + K_5 that create no 5-term arithmetic progression with a as first term and four terms in the tail {1+x: x >= 5^L, all base-5 digits of x in {0,1,2,3}}.
+
+DATA
+0, 0, 0, 0, 0, 2, 28, 260, 1994
+
+OFFSET
+1,6
+
+COMMENTS
+K_5 consists of nonnegative integers whose base-5 digits are in {0,1,2,3}. Exact carry-automaton enumeration, with individual tail checks at L=9. Tail compatibility does not mean that a can be added without head removals. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
+
+EXAMPLE
+For L=6 the two values are 3380 and 8340.
+
+PROG
+from functools import lru_cache
+
+@lru_cache(None)
+def _step(states, digit):
+    return tuple(sorted({tuple(v//5 for v in values)
+                         for carries in states for d in range(5)
+                         for values in [tuple(c+digit+j*d for j,c in enumerate(carries,1))]
+                         if all(v%5 < 4 for v in values)}))
+
+@lru_cache(None)
+def _tail_possible(states):
+    pending = [(c,0) for c in states]
+    seen = set(pending)
+    for carries,mask in pending:
+        if carries == (0,0,0,0) and mask == 15:
+            return True
+        for d in range(5):
+            values = tuple(c+j*d for j,c in enumerate(carries,1))
+            if any(v%5 == 4 for v in values):
+                continue
+            nxt = (tuple(v//5 for v in values), mask | sum(1<<j for j,v in enumerate(values) if v%5))
+            if nxt not in seen:
+                seen.add(nxt)
+                pending.append(nxt)
+    return False
+
+def build_tail_automaton(L):
+    """Enumerate A(L) using determinized low-digit carry transitions."""
+    if not 1 <= L <= 9:
+        raise ValueError('level cap')
+    answer = []
+    def visit(pos, states, x, place, outside):
+        if pos == L:
+            if outside and not _tail_possible(states):
+                answer.append(x+1)
+            return
+        for digit in range(5):
+            visit(pos+1, _step(states,digit), x+digit*place, place*5, outside or digit == 4)
+    visit(0, ((0,0,0,0),), 0, 1, False)
+    return sorted(answer)
+
+print(", ".join(str(len(build_tail_automaton(L))) for L in range(1,7)))
+# ~~~~
+
+CROSSREFS
+Related finite reciprocal maxima: A?????? (g_3 numerators), A?????? (g_3 denominators).
+
+KEYWORD
+nonn,more
+
+AUTHOR
+_Khaled Aboeldahab_, Nov 24 2026

@@ -1,0 +1,51 @@
+NAME
+Denominators of g_3(n), the maximum reciprocal sum of a 3-term arithmetic-progression-free subset of {1,...,n}.
+
+DATA
+1, 2, 2, 4, 20, 20, 20, 20, 72, 20, 220, 220, 2860, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 20020, 2640, 7700, 328900, 59670, 59670, 290290, 355212
+
+OFFSET
+1,2
+
+COMMENTS
+g_3(n) is the maximum of sum(1/a for a in S) over all 3-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 30 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK. The greedy sequence differs from the optimum at n=9 (143/72 versus 39/20) and n=24 (6059/2640 versus 45831/20020).
+
+EXAMPLE
+For n=1, g_3(1)=1, so a(1)=1.
+
+PROG
+from fractions import Fraction
+
+def terms(n=12, k=3):
+    result = []
+    for N in range(1, n+1):
+        best = Fraction(0)
+        suffix = [Fraction(0)]*(N+2)
+        for v in range(N, 0, -1):
+            suffix[v] = suffix[v+1]+Fraction(1,v)
+        def search(v, chosen, score):
+            nonlocal best
+            if score+suffix[v] <= best:
+                return
+            if v > N:
+                best = max(best, score)
+                return
+            if not any(all(v-j*d in chosen for j in range(1,k))
+                       for d in range(1,(v-1)//(k-1)+1)):
+                search(v+1, chosen | {v}, score+Fraction(1,v))
+            search(v+1, chosen, score)
+        search(1, set(), Fraction(0))
+        result.append(best.denominator)
+    return result
+
+print(", ".join(map(str,terms())))
+# ~~~~
+
+CROSSREFS
+A?????? (numerators of g_3(n)).
+
+KEYWORD
+nonn,frac
+
+AUTHOR
+_Khaled Aboeldahab_, Nov 24 2026

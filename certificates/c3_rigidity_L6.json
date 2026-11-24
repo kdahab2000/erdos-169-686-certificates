@@ -1,0 +1,42 @@
+{
+  "schema": "erd169.rigidity.v1",
+  "k": "5",
+  "p": "5",
+  "D": [
+    "0",
+    "1",
+    "2",
+    "3"
+  ],
+  "s": "1",
+  "L": "6",
+  "candidates": [
+    "3380",
+    "8340"
+  ],
+  "dual_arcs": [
+    {
+      "a": "3380",
+      "start": "3128",
+      "diff": "63",
+      "weight": {
+        "num": "1",
+        "den": "3380"
+      }
+    },
+    {
+      "a": "8340",
+      "start": "428",
+      "diff": "7912",
+      "weight": {
+        "num": "1",
+        "den": "8340"
+      }
+    }
+  ],
+  "min_nonempty_loss": {
+    "num": "0",
+    "den": "1"
+  },
+  "pure_ref_sha256": "061ccbdb4f8053c1a6d2269c579f02744c4534d6adac0a4f58c4f0b06b855a4d"
+}

@@ -1873,6 +1873,18 @@
     {
       "path": "c2_head_tail_trial_L7.json",
       "sha256": "6739eedc952018d6f4c41c72e879ff3e74f95a8b1fd4f730981b3fd00817d791"
+    },
+    {
+      "path": "c3_rigidity_L6.json",
+      "sha256": "b473355df43960e7f18bd3a03b0f31b53cbc1176cd992f19a208e075301dc5dc"
+    },
+    {
+      "path": "c3_rigidity_L7.json",
+      "sha256": "d7da8f7243d06c2f46b1787c5be150de0bb1025eac088a5cb3a345669fd55b31"
+    },
+    {
+      "path": "c3_rigidity_L8.json",
+      "sha256": "2a4930196c33091eb3bf3ee27182a0e61f0a3efc7bd765d56da03f65a4a68317"
     }
   ]
 }

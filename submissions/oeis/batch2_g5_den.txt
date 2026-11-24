@@ -1,0 +1,51 @@
+NAME
+Denominators of g_5(n), the maximum reciprocal sum of a 5-term arithmetic-progression-free subset of {1,...,n}.
+
+DATA
+1, 2, 6, 12, 12, 4, 28, 56, 504, 504, 5544, 5544, 72072, 72072, 72072, 144144, 2450448, 272272, 5173168, 5173168, 5173168, 5173168, 5173168, 20020, 100100, 20420400, 183783600, 675675, 19594575, 19594575, 607431825, 35876659104, 35876659104
+
+OFFSET
+1,2
+
+COMMENTS
+g_5(n) is the maximum of sum(1/a for a in S) over all 5-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 40 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
+
+EXAMPLE
+For n=1, g_5(1)=1, so a(1)=1.
+
+PROG
+from fractions import Fraction
+
+def terms(n=12, k=5):
+    result = []
+    for N in range(1, n+1):
+        best = Fraction(0)
+        suffix = [Fraction(0)]*(N+2)
+        for v in range(N, 0, -1):
+            suffix[v] = suffix[v+1]+Fraction(1,v)
+        def search(v, chosen, score):
+            nonlocal best
+            if score+suffix[v] <= best:
+                return
+            if v > N:
+                best = max(best, score)
+                return
+            if not any(all(v-j*d in chosen for j in range(1,k))
+                       for d in range(1,(v-1)//(k-1)+1)):
+                search(v+1, chosen | {v}, score+Fraction(1,v))
+            search(v+1, chosen, score)
+        search(1, set(), Fraction(0))
+        result.append(best.denominator)
+    return result
+
+print(", ".join(map(str,terms())))
+# ~~~~
+
+CROSSREFS
+A?????? (numerators of g_5(n)).
+
+KEYWORD
+nonn,frac
+
+AUTHOR
+_Khaled Aboeldahab_, Nov 24 2026

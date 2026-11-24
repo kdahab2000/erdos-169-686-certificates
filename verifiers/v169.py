@@ -483,12 +483,131 @@ def verify_head_tail(cert, base_dir=None):
     return {"valid": True, "delta": fraction_object(delta)}
 
 
+
+def rigidity_candidates(level):
+    """Independent aggregate carry-language decision; no stored scans trusted."""
+    from functools import lru_cache
+    @lru_cache(None)
+    def transition(states, digit):
+        targets = set()
+        for carries in states:
+            for d in range(5):
+                values = tuple(c+digit+j*d for j,c in enumerate(carries,1))
+                if all(v%5 != 4 for v in values):
+                    targets.add(tuple(v//5 for v in values))
+        return tuple(sorted(targets))
+    @lru_cache(None)
+    def accepts(states):
+        queue = [(c,0) for c in states]
+        seen = set(queue)
+        for carries,mask in queue:
+            if carries == (0,0,0,0) and mask == 15:
+                return True
+            for d in range(5):
+                values = tuple(c+j*d for j,c in enumerate(carries,1))
+                if any(v%5 == 4 for v in values):
+                    continue
+                high = mask
+                for j,v in enumerate(values):
+                    if v%5:
+                        high |= 1<<j
+                state = (tuple(v//5 for v in values),high)
+                if state not in seen:
+                    seen.add(state)
+                    queue.append(state)
+        return False
+    result = []
+    def walk(pos,states,x,place,outside):
+        if pos == level:
+            if outside and not accepts(states):
+                result.append(x+1)
+            return
+        for digit in range(5):
+            walk(pos+1,transition(states,digit),x+place*digit,place*5,outside or digit==4)
+    walk(0,((0,0,0,0),),0,1,False)
+    return sorted(result)
+
+
+def rigidity_head_terms(terms, a, cutoff):
+    return [x for x in terms if x != a and x < cutoff]
+
+
+def verify_rigidity(cert, base_dir=None):
+    require_exact_keys(cert,("schema","k","p","D","s","L","candidates","dual_arcs","min_nonempty_loss","pure_ref_sha256"),"rigidity")
+    if (cert["schema"] != "erd169.rigidity.v1" or cert["k"] != "5" or cert["p"] != "5"
+            or cert["s"] != "1" or cert["D"] != ["0","1","2","3"]):
+        raise CertificateError("rigidity parameter mismatch")
+    level = canonical_integer(cert["L"],"L",1)
+    if level>8:
+        raise CertificateError("rigidity level cap")
+    if not isinstance(cert["candidates"],list) or len(cert["candidates"])>260:
+        raise CertificateError("candidate array cap")
+    candidates = [canonical_integer(x,"candidate",1) for x in cert["candidates"]]
+    if candidates != rigidity_candidates(level):
+        raise CertificateError("incomplete or invalid candidate list")
+    cutoff = 1+5**level
+    reflection = 3*(5**level-1)//4+2
+    candidate_set = set(candidates)
+    for a in candidates:
+        if reflection-a not in candidate_set or not tail_compatible(a,1,level,[0,1,2,3]):
+            raise CertificateError("candidate tail/reflection mismatch")
+    margin = canonical_fraction_object(cert["min_nonempty_loss"],"min_nonempty_loss")
+    if base_dir is None:
+        raise CertificateError("pure reference requires directory")
+    ref = resolve_digest(cert["pure_ref_sha256"],base_dir)
+    verify_block_digit(ref)
+    if ref["p"]!="5" or ref["k"]!="5" or ref["block_len"]!="1" or ref["s"]!="1" or ref["D"]!=cert["D"]:
+        raise CertificateError("pure reference mismatch")
+    if not isinstance(cert["dual_arcs"],list) or len(cert["dual_arcs"])>100000:
+        raise CertificateError("arc array cap")
+    coverage = {a:Fraction() for a in candidates}
+    load = {}
+    seen = set()
+    def bounded(value):
+        if max(value.numerator.bit_length(),value.denominator.bit_length())>4096:
+            raise CertificateError("rigidity rational sum exceeds cap")
+        return value
+    for arc in cert["dual_arcs"]:
+        if not isinstance(arc,dict):
+            raise CertificateError("arc must be object")
+        require_exact_keys(arc,("a","start","diff","weight"),"arc")
+        a = canonical_integer(arc["a"],"a",1)
+        start = canonical_integer(arc["start"],"start",1)
+        diff = canonical_integer(arc["diff"],"diff",1)
+        # Any admissible arc has d < 5**L. This also bounds membership work.
+        if a not in candidate_set or diff>=5**level or start>=cutoff:
+            raise CertificateError("arc range")
+        identity = (a,start,diff)
+        if identity in seen:
+            raise CertificateError("duplicate arc")
+        seen.add(identity)
+        terms = [start+j*diff for j in range(5)]
+        if a not in terms or any(not padded_member(x-1,[0,1,2,3]) for x in terms if x!=a):
+            raise CertificateError("forged progression")
+        head = rigidity_head_terms(terms,a,cutoff)
+        if not head:
+            raise CertificateError("arc has no removable head point")
+        weight = canonical_fraction_object(arc["weight"],"weight")
+        if weight<=0:
+            raise CertificateError("nonpositive weight")
+        coverage[a] = bounded(coverage[a]+weight)
+        for r in head:
+            load[r] = bounded(load.get(r,Fraction())+weight)
+            if load[r]>Fraction(1,r):
+                raise CertificateError("overloaded head capacity")
+    for a,total in coverage.items():
+        if total<bounded(Fraction(1,a)+margin):
+            raise CertificateError("insufficient candidate coverage")
+    return {"valid":True,"max_delta":{"num":"0","den":"1"},"unique_optimum":margin>0}
+
 def verify_certificate(certificate: Mapping[str, Any], base_dir=None) -> Dict[str, Any]:
     schema = certificate.get("schema") if isinstance(certificate, dict) else None
     if schema == "erd169.block_digit.v1":
         return verify_block_digit(certificate)
     if schema == "erd169.head_tail.v1":
         return verify_head_tail(certificate, base_dir)
+    if schema == "erd169.rigidity.v1":
+        return verify_rigidity(certificate, base_dir)
     if schema == FINITE_SCHEMA:
         return verify_finite(certificate)
     if schema == PREFIX_SCHEMA:

@@ -1,0 +1,51 @@
+NAME
+Numerators of g_6(n), the maximum reciprocal sum of a 6-term arithmetic-progression-free subset of {1,...,n}.
+
+DATA
+1, 3, 11, 25, 137, 137, 1019, 2143, 6709, 6961, 6961, 7171, 95743, 98083, 100267, 100267, 1737299, 196471, 3794829, 770723, 770723, 8595525, 200283659, 304143703, 7692829723, 7778634673, 7778634673, 7778634673, 10417194341, 10417194341, 39653247317
+
+OFFSET
+1,2
+
+COMMENTS
+g_6(n) is the maximum of sum(1/a for a in S) over all 6-term arithmetic-progression-free subsets S of {1,...,n}. Fractions are reduced. The b-file contains all 40 certified terms, backed by finite optimization proof replays. Novelty: SOURCE_REPORTED_REQUIRES_LIVE_CHECK.
+
+EXAMPLE
+For n=1, g_6(1)=1, so a(1)=1.
+
+PROG
+from fractions import Fraction
+
+def terms(n=12, k=6):
+    result = []
+    for N in range(1, n+1):
+        best = Fraction(0)
+        suffix = [Fraction(0)]*(N+2)
+        for v in range(N, 0, -1):
+            suffix[v] = suffix[v+1]+Fraction(1,v)
+        def search(v, chosen, score):
+            nonlocal best
+            if score+suffix[v] <= best:
+                return
+            if v > N:
+                best = max(best, score)
+                return
+            if not any(all(v-j*d in chosen for j in range(1,k))
+                       for d in range(1,(v-1)//(k-1)+1)):
+                search(v+1, chosen | {v}, score+Fraction(1,v))
+            search(v+1, chosen, score)
+        search(1, set(), Fraction(0))
+        result.append(best.numerator)
+    return result
+
+print(", ".join(map(str,terms())))
+# ~~~~
+
+CROSSREFS
+A?????? (denominators of g_6(n)).
+
+KEYWORD
+nonn,frac
+
+AUTHOR
+_Khaled Aboeldahab_, Nov 24 2026
